@@ -24,6 +24,7 @@ import {
   Code2,
   FolderGit2,
   Github,
+  Lightbulb,
   MessageSquare,
   Plus,
   Settings,

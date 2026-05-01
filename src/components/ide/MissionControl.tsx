@@ -5,6 +5,7 @@
  * This is what Don means by "I wanna see live action to know that
  * it's actually doing what it's supposed to."
  */
+import type { JSX } from "react";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
@@ -27,19 +28,14 @@ import {
   FileDown,
   FilePlus,
   FileX,
-  Flame,
-  FlaskConical,
   GitBranch,
   Loader2,
   MessageSquare,
-  Paintbrush,
   Pause,
   Rocket,
-  Sparkles,
   TestTube,
   TreePine,
   XCircle,
-  Zap,
 } from "lucide-react";
 
 // ─── Types ──────────────────────────────────────────────────────
@@ -216,7 +212,7 @@ interface MissionControlProps {
   compact?: boolean;
 }
 
-export function MissionControl({ projectId, compact }: MissionControlProps) {
+export function MissionControl({ projectId, compact: _compact }: MissionControlProps) {
   const mission = useQuery(api.swarm.getActiveMission, { projectId });
   const [activeTab, setActiveTab] = useState<"feed" | "agents" | "files">(
     "feed"
