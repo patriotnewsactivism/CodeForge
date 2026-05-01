@@ -33,6 +33,16 @@ const AGENT_MODELS = [
     authHeader: "Authorization",
     authPrefix: "Bearer ",
   },
+  {
+    id: "kimi-k2.6",
+    model: "Kimi-K2.6",
+    endpoint: () => process.env.KIMI_ENDPOINT || DEFAULTS.DEEPSEEK_ENDPOINT,
+    apiKey: () => process.env.KIMI_API_KEY || DEFAULTS.DEEPSEEK_API_KEY,
+    inputCostPer1M: 0.15,
+    outputCostPer1M: 0.35,
+    authHeader: "Authorization",
+    authPrefix: "Bearer ",
+  },
 ];
 
 // List agent tasks by session
@@ -197,7 +207,7 @@ ${fileList || "(empty project)"}
 Return ONLY a JSON array of exactly ${clampedCount} objects, each with:
 - "title": Short task name (e.g., "Build navigation component")
 - "description": Detailed instructions for the agent, including specific file paths to create/modify
-- "model": Either "deepseek-v3.2" or "grok-4.1-fast" (alternate between them for speed)
+- "model": One of "deepseek-v3.2", "grok-4.1-fast", or "kimi-k2.6" (distribute evenly for speed and diversity)
 
 Return ONLY valid JSON array, no markdown, no explanation.`;
 
@@ -268,27 +278,30 @@ Return ONLY valid JSON array, no markdown, no explanation.`;
         parentTaskId,
         title: t.title || `Agent ${i + 1}`,
         description: t.description || userPrompt,
-        model: t.model || (i % 2 === 0 ? "deepseek-v3.2" : "grok-4.1-fast"),
+        model: t.model || (["deepseek-v3.2", "grok-4.1-fast", "kimi-k2.6"][i % 3]),
         agentIndex: i,
       });
       taskIds.push(taskId);
     }
 
-    // Step 2: Launch all agents in parallel
-    const agentPromises = taskIds.map((taskId, i) =>
-      ctx.runAction(api.agents.executeAgent, {
+    // Step 2: Launch all agents truly in parallel using scheduler
+    // Each agent runs as an independent Convex action — no blocking!
+    for (const taskId of taskIds) {
+      await ctx.scheduler.runAfter(0, api.agents.executeAgent, {
         taskId: taskId as any,
         projectId,
         sessionId,
         userPrompt,
-      })
-    );
+      });
+    }
 
-    // Don't await — let them run in parallel
-    // Convex will handle them as separate scheduled actions
-    // Actually in Convex actions we DO need to await
-    // But they'll run concurrently via Promise.all
-    await Promise.all(agentPromises);
+    // Save orchestrator message to chat so user sees it
+    await ctx.runMutation(api.chatMessages.send, {
+      sessionId,
+      content: `🚀 **Multi-Agent Build launched** — ${taskIds.length} agents working in parallel.\n\nWatch the dashboard above for real-time progress. Files will appear in your file tree as each agent completes.`,
+      role: "assistant",
+      model: "orchestrator",
+    });
 
     return { parentTaskId, taskCount: taskIds.length };
   },

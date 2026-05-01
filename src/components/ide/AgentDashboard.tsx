@@ -11,6 +11,7 @@ import {
   Clock,
   Zap,
   Brain,
+  Sparkles,
   FileCode,
   DollarSign,
 } from "lucide-react";
@@ -108,6 +109,8 @@ function AgentCard({ task }: { task: AgentTask }) {
             <div className="flex items-center gap-1 mt-0.5">
               {task.model === "deepseek-v3.2" ? (
                 <Zap className="h-2.5 w-2.5 text-chart-3" />
+              ) : task.model === "kimi-k2.6" ? (
+                <Sparkles className="h-2.5 w-2.5 text-purple-400" />
               ) : (
                 <Brain className="h-2.5 w-2.5 text-chart-2" />
               )}

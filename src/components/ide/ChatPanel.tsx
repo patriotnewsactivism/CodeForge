@@ -27,6 +27,7 @@ import {
   Users,
   Minus,
   Plus,
+  Sparkles,
 } from "lucide-react";
 
 interface Session {
@@ -69,6 +70,13 @@ const MODELS = [
     icon: Brain,
     color: "text-chart-2",
     desc: "$0.20/$0.50 per 1M tokens",
+  },
+  {
+    id: "kimi-k2.6",
+    name: "Kimi K2.6",
+    icon: Sparkles,
+    color: "text-purple-400",
+    desc: "$0.15/$0.35 per 1M tokens",
   },
   {
     id: "gpt-5-mini",
@@ -207,14 +215,11 @@ export function ChatPanel({
 
     try {
       if (multiAgentMode && projectId) {
-        // Multi-agent mode
+        // Multi-agent mode — agents run in parallel background
         toast.info(
           `Launching ${agentCount} agents in parallel...`,
           { duration: 3000 }
         );
-
-        // Save user message to chat
-        const chatMessages = await import("../../../convex/_generated/api");
 
         const result = await orchestrateAction({
           projectId: projectId as Id<"projects">,
@@ -225,7 +230,8 @@ export function ChatPanel({
 
         setActiveParentTaskId(result.parentTaskId);
         toast.success(
-          `${result.taskCount} agents completed their work!`
+          `${result.taskCount} agents launched! Watch the dashboard for real-time progress.`,
+          { duration: 5000 }
         );
       } else {
         // Single agent mode

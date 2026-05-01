@@ -51,6 +51,18 @@ const MODELS = {
     authHeader: "api-key",
     authPrefix: "",
   },
+  "kimi-k2.6": {
+    name: "Kimi K2.6",
+    endpoint: () =>
+      process.env.KIMI_ENDPOINT || DEFAULTS.DEEPSEEK_ENDPOINT,
+    apiKey: () => process.env.KIMI_API_KEY || DEFAULTS.DEEPSEEK_API_KEY,
+    model: "Kimi-K2.6",
+    inputCostPer1M: 0.15,
+    outputCostPer1M: 0.35,
+    maxTokens: 8192,
+    authHeader: "Authorization",
+    authPrefix: "Bearer ",
+  },
 } as const;
 
 type ModelId = keyof typeof MODELS;
@@ -58,6 +70,7 @@ type ModelId = keyof typeof MODELS;
 const MODEL_FALLBACK_ORDER: ModelId[] = [
   "deepseek-v3.2",
   "grok-4.1-fast",
+  "kimi-k2.6",
   "gpt-5-mini",
 ];
 
