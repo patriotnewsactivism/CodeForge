@@ -28,6 +28,14 @@ export const list = query({
   },
 });
 
+// Get a session by ID (used internally by swarm)
+export const get = query({
+  args: { sessionId: v.id("sessions") },
+  handler: async (ctx, { sessionId }) => {
+    return await ctx.db.get(sessionId);
+  },
+});
+
 export const getActive = query({
   args: {},
   returns: v.union(

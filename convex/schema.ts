@@ -94,7 +94,108 @@ const schema = defineSchema({
     .index("by_project", ["projectId"])
     .index("by_project_status", ["projectId", "status"]),
 
-  // Multi-Agent Tasks
+  // ──────────────────────────────────────────────────────────────────
+  // AUTONOMOUS AGENT SWARM SYSTEM
+  // ──────────────────────────────────────────────────────────────────
+
+  // Missions — top-level user requests ("Build me a todo app")
+  // A mission persists and tracks the entire autonomous build process
+  missions: defineTable({
+    userId: v.id("users"),
+    projectId: v.id("projects"),
+    sessionId: v.id("sessions"),
+    prompt: v.string(), // Original user request
+    status: v.union(
+      v.literal("planning"),     // Orchestrator is decomposing
+      v.literal("running"),      // Agents are working
+      v.literal("paused"),       // User paused
+      v.literal("completed"),    // All done
+      v.literal("failed"),       // Unrecoverable error
+    ),
+    plan: v.optional(v.string()), // JSON: the high-level plan
+    totalAgentsSpawned: v.optional(v.number()),
+    totalFilesCreated: v.optional(v.number()),
+    totalCost: v.optional(v.number()),
+    startedAt: v.number(),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_user", ["userId"])
+    .index("by_project", ["projectId"])
+    .index("by_session", ["sessionId"]),
+
+  // Agent Runs — each autonomous agent instance
+  // Agents can spawn child agents, creating an exponential tree
+  agentRuns: defineTable({
+    missionId: v.id("missions"),
+    projectId: v.id("projects"),
+    parentAgentId: v.optional(v.id("agentRuns")), // null = root agent
+    role: v.string(), // "orchestrator", "planner", "coder", "reviewer", "debugger", "tester"
+    title: v.string(),
+    description: v.string(),
+    model: v.string(),
+    status: v.union(
+      v.literal("queued"),
+      v.literal("thinking"),     // AI is generating
+      v.literal("coding"),       // Writing files
+      v.literal("reviewing"),    // Reviewing output
+      v.literal("spawning"),     // Creating child agents
+      v.literal("waiting"),      // Waiting for children
+      v.literal("completed"),
+      v.literal("failed"),
+    ),
+    depth: v.number(), // 0 = root, 1 = first spawn, etc. Cap at 4
+    childCount: v.optional(v.number()),
+    filesCreated: v.optional(v.number()),
+    filesModified: v.optional(v.number()),
+    inputTokens: v.optional(v.number()),
+    outputTokens: v.optional(v.number()),
+    cost: v.optional(v.number()),
+    result: v.optional(v.string()), // Summary of what was accomplished
+    error: v.optional(v.string()),
+    startedAt: v.optional(v.number()),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_mission", ["missionId"])
+    .index("by_parent", ["parentAgentId"])
+    .index("by_project", ["projectId"])
+    .index("by_mission_status", ["missionId", "status"]),
+
+  // Activity Log — real-time stream of everything agents do
+  // This is what the user watches — the "live action"
+  activityLog: defineTable({
+    missionId: v.id("missions"),
+    agentRunId: v.id("agentRuns"),
+    type: v.union(
+      v.literal("thinking"),      // Agent is reasoning
+      v.literal("plan"),          // Agent created a plan
+      v.literal("spawn"),         // Agent spawned a child
+      v.literal("file_create"),   // Created a file
+      v.literal("file_modify"),   // Modified a file
+      v.literal("file_delete"),   // Deleted a file
+      v.literal("code"),          // Generated code block
+      v.literal("test"),          // Running a test
+      v.literal("error"),         // Hit an error
+      v.literal("fix"),           // Auto-fixing an error
+      v.literal("review"),        // Reviewing code
+      v.literal("complete"),      // Agent finished
+      v.literal("message"),       // General status message
+    ),
+    title: v.string(),           // Short description: "Creating src/App.tsx"
+    detail: v.optional(v.string()), // Longer content (code snippet, error, etc.)
+    filePath: v.optional(v.string()), // Related file
+    agentRole: v.string(),       // Role of the agent for display
+    agentModel: v.string(),      // Model used
+    timestamp: v.number(),
+  })
+    .index("by_mission", ["missionId"])
+    .index("by_agent", ["agentRunId"])
+    .index("by_mission_time", ["missionId", "timestamp"]),
+
+  // ──────────────────────────────────────────────────────────────────
+  // LEGACY — keep for backward compat, will be migrated
+  // ──────────────────────────────────────────────────────────────────
+
+  // Multi-Agent Tasks (legacy)
   agentTasks: defineTable({
     projectId: v.id("projects"),
     sessionId: v.id("sessions"),

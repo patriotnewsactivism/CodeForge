@@ -1,5 +1,5 @@
 import type { Id } from "../../../convex/_generated/dataModel";
-import { useMutation, useAction } from "convex/react";
+import { useMutation, useAction, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { AgentDashboard } from "./AgentDashboard";
+import { MissionControl } from "./MissionControl";
 import {
   Send,
   Bot,
@@ -28,6 +29,8 @@ import {
   Minus,
   Plus,
   Sparkles,
+  Rocket,
+  Activity,
 } from "lucide-react";
 
 interface Session {
@@ -164,17 +167,33 @@ export function ChatPanel({
   const [isLoading, setIsLoading] = useState(false);
   const [selectedModel, setSelectedModel] = useState("deepseek-v3.2");
   const [multiAgentMode, setMultiAgentMode] = useState(false);
+  const [swarmMode, setSwarmMode] = useState(false);
   const [agentCount, setAgentCount] = useState(5);
   const [activeParentTaskId, setActiveParentTaskId] = useState<string | null>(
     null
   );
+  const [showMissionControl, setShowMissionControl] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const chatAction = useAction(api.ai.chat);
   const orchestrateAction = useAction(api.agents.orchestrate);
+  const launchMission = useAction(api.swarm.launchMission);
   const updateModel = useMutation(api.sessions.updateModel);
   const clearSession = useMutation(api.chatMessages.clearSession);
+
+  // Track active mission
+  const activeMission = useQuery(
+    api.swarm.getActiveMission,
+    projectId ? { projectId: projectId as Id<"projects"> } : "skip"
+  );
+
+  // Auto-show mission control when a mission is active
+  useEffect(() => {
+    if (activeMission && (activeMission.status === "running" || activeMission.status === "planning")) {
+      setShowMissionControl(true);
+    }
+  }, [activeMission?.status]);
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -214,8 +233,23 @@ export function ChatPanel({
     setIsLoading(true);
 
     try {
-      if (multiAgentMode && projectId) {
-        // Multi-agent mode — agents run in parallel background
+      if (swarmMode && projectId) {
+        // 🚀 SWARM MODE — autonomous agent swarm
+        toast.info("🚀 Launching autonomous agent swarm...", { duration: 3000 });
+
+        const result = await launchMission({
+          projectId: projectId as Id<"projects">,
+          sessionId: session._id,
+          prompt: message,
+        });
+
+        setShowMissionControl(true);
+        toast.success(
+          "Swarm is live! Watch the Mission Control panel for real-time progress.",
+          { duration: 5000 }
+        );
+      } else if (multiAgentMode && projectId) {
+        // Multi-agent mode (legacy) — agents run in parallel background
         toast.info(
           `Launching ${agentCount} agents in parallel...`,
           { duration: 3000 }
@@ -315,28 +349,67 @@ export function ChatPanel({
         </div>
       </div>
 
-      {/* Multi-agent toggle bar */}
+      {/* Mode toggle bar */}
       <div className="flex items-center justify-between px-3 py-1 border-b border-border bg-card/30">
-        <button
-          onClick={() => setMultiAgentMode(!multiAgentMode)}
-          className={cn(
-            "flex items-center gap-1.5 text-[10px] font-medium transition-colors rounded-md px-2 py-0.5",
-            multiAgentMode
-              ? "text-chart-3 bg-chart-3/10"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          <Users className="h-3 w-3" />
-          Multi-Agent
-          {multiAgentMode && (
-            <Badge
-              variant="secondary"
-              className="text-[8px] h-3.5 px-1 bg-chart-3/20 text-chart-3"
+        <div className="flex items-center gap-1">
+          {/* Swarm Mode (primary) */}
+          <button
+            onClick={() => {
+              setSwarmMode(!swarmMode);
+              if (!swarmMode) setMultiAgentMode(false);
+            }}
+            className={cn(
+              "flex items-center gap-1.5 text-[10px] font-medium transition-colors rounded-md px-2 py-0.5",
+              swarmMode
+                ? "text-purple-400 bg-purple-500/10"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Rocket className="h-3 w-3" />
+            Swarm
+            {swarmMode && (
+              <Badge
+                variant="secondary"
+                className="text-[8px] h-3.5 px-1 bg-purple-500/20 text-purple-400"
+              >
+                ON
+              </Badge>
+            )}
+          </button>
+
+          {/* Legacy Multi-Agent */}
+          <button
+            onClick={() => {
+              setMultiAgentMode(!multiAgentMode);
+              if (!multiAgentMode) setSwarmMode(false);
+            }}
+            className={cn(
+              "flex items-center gap-1.5 text-[10px] font-medium transition-colors rounded-md px-2 py-0.5",
+              multiAgentMode
+                ? "text-chart-3 bg-chart-3/10"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Users className="h-3 w-3" />
+            Multi-Agent
+          </button>
+
+          {/* Mission Control toggle */}
+          {projectId && (
+            <button
+              onClick={() => setShowMissionControl(!showMissionControl)}
+              className={cn(
+                "flex items-center gap-1.5 text-[10px] font-medium transition-colors rounded-md px-2 py-0.5",
+                showMissionControl
+                  ? "text-cyan-400 bg-cyan-500/10"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
             >
-              ON
-            </Badge>
+              <Activity className="h-3 w-3" />
+              Mission Control
+            </button>
           )}
-        </button>
+        </div>
         {multiAgentMode && (
           <div className="flex items-center gap-1">
             <span className="text-[10px] text-muted-foreground">Agents:</span>
@@ -379,7 +452,12 @@ export function ChatPanel({
                 <br />
                 Open a file for context-aware assistance.
               </p>
-              {multiAgentMode && (
+              {swarmMode && (
+                <p className="text-xs text-purple-400 mt-2">
+                  🚀 Swarm mode: Agents will plan, code, review & self-multiply
+                </p>
+              )}
+              {multiAgentMode && !swarmMode && (
                 <p className="text-xs text-chart-3 mt-2">
                   ⚡ Multi-Agent mode: {agentCount} agents will work in parallel
                 </p>
@@ -387,8 +465,17 @@ export function ChatPanel({
             </div>
           )}
 
-          {/* Agent Dashboard (if multi-agent was used) */}
-          {activeParentTaskId && (
+          {/* Mission Control (Swarm mode) */}
+          {showMissionControl && projectId && (
+            <div className="rounded-lg border border-purple-500/20 overflow-hidden mb-3 h-[400px]">
+              <MissionControl
+                projectId={projectId as Id<"projects">}
+              />
+            </div>
+          )}
+
+          {/* Legacy Agent Dashboard (if multi-agent was used) */}
+          {activeParentTaskId && !showMissionControl && (
             <AgentDashboard
               sessionId={session?._id || null}
               parentTaskId={activeParentTaskId}
@@ -464,9 +551,11 @@ export function ChatPanel({
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="h-3.5 w-3.5 animate-spin text-chart-3" />
                   <span className="text-xs">
-                    {multiAgentMode
-                      ? `Orchestrating ${agentCount} agents...`
-                      : `Thinking with ${MODELS.find((m) => m.id === selectedModel)?.name}...`}
+                    {swarmMode
+                      ? "🚀 Swarm launching — agents spawning..."
+                      : multiAgentMode
+                        ? `Orchestrating ${agentCount} agents...`
+                        : `Thinking with ${MODELS.find((m) => m.id === selectedModel)?.name}...`}
                   </span>
                 </div>
               </div>
@@ -484,9 +573,11 @@ export function ChatPanel({
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={
-              multiAgentMode
-                ? `Describe what to build — ${agentCount} agents will work on it...`
-                : "Ask AI to write, debug, or explain code..."
+              swarmMode
+                ? "Describe what to build — the swarm will plan, code, review & debug..."
+                : multiAgentMode
+                  ? `Describe what to build — ${agentCount} agents will work on it...`
+                  : "Ask AI to write, debug, or explain code..."
             }
             className="min-h-[60px] max-h-32 resize-none text-sm bg-background"
             disabled={isLoading || !session}
@@ -511,12 +602,14 @@ export function ChatPanel({
           >
             {isLoading ? (
               <Loader2 className="h-3 w-3 animate-spin" />
+            ) : swarmMode ? (
+              <Rocket className="h-3 w-3" />
             ) : multiAgentMode ? (
               <Users className="h-3 w-3" />
             ) : (
               <Send className="h-3 w-3" />
             )}
-            {multiAgentMode ? `Launch ${agentCount} Agents` : "Send"}
+            {swarmMode ? "Launch Swarm" : multiAgentMode ? `Launch ${agentCount} Agents` : "Send"}
           </Button>
         </div>
       </div>
