@@ -237,7 +237,7 @@ export function ChatPanel({
         // 🚀 SWARM MODE — autonomous agent swarm
         toast.info("🚀 Launching autonomous agent swarm...", { duration: 3000 });
 
-        const result = await launchMission({
+        await launchMission({
           projectId: projectId as Id<"projects">,
           sessionId: session._id,
           prompt: message,

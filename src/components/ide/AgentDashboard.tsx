@@ -30,6 +30,7 @@ interface AgentTask {
   startedAt?: number;
   completedAt?: number;
   agentIndex: number;
+  result?: string;
 }
 
 const AGENT_COLORS = [
@@ -173,7 +174,7 @@ function AgentCard({ task }: { task: AgentTask }) {
 }
 
 export function AgentDashboard({
-  sessionId,
+  sessionId: _sessionId,
   parentTaskId,
 }: {
   sessionId: Id<"sessions"> | null;

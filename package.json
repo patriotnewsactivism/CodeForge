@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "npx convex deploy --cmd 'tsc -b && vite build'",
+    "build:local": "tsc -b && vite build",
     "preview": "vite preview",
     "check": "biome check .",
     "format": "biome check --write .",
