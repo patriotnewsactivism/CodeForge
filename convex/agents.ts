@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { action, mutation, query } from "./_generated/server";
 import { api } from "./_generated/api";
+import { extractFiles } from "./fileExtractor";
 
 declare const process: { env: Record<string, string | undefined> };
 
@@ -186,7 +187,7 @@ export const orchestrate = action({
     const parentTaskId = `multi_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
     // Get project files for context
-    const files = await ctx.runQuery(api.files.listWithContent, { projectId });
+    const files = await ctx.runQuery(api.files.listWithContentInternal, { projectId });
     const fileList = files
       .filter((f: { type: string }) => f.type === "file")
       .map((f: { path: string }) => f.path)
@@ -330,7 +331,7 @@ export const executeAgent = action({
     });
 
     // Get project files for context
-    const files = await ctx.runQuery(api.files.listWithContent, { projectId });
+    const files = await ctx.runQuery(api.files.listWithContentInternal, { projectId });
     const fileSummary = files
       .filter((f: { type: string }) => f.type === "file")
       .slice(0, 20)
@@ -408,24 +409,20 @@ Focus ONLY on your assigned task. Generate complete, working, production-ready c
         (inputTokens / 1_000_000) * modelConfig.inputCostPer1M +
         (outputTokens / 1_000_000) * modelConfig.outputCostPer1M;
 
-      // Parse and create files
+      // Parse and create files using robust extractor
       let filesCreated = 0;
-      const fileBlockRegex = /```[a-zA-Z]*:([^\n]+)\n([\s\S]*?)```/g;
-      let match;
-      while ((match = fileBlockRegex.exec(content)) !== null) {
-        const filePath = match[1].trim();
-        const fileContent = match[2];
-        const fileName = filePath.split("/").pop() || filePath;
+      const extracted = extractFiles(content);
+      for (const file of extracted) {
         try {
           await ctx.runMutation(api.files.createFromAI, {
             projectId,
-            path: filePath,
-            name: fileName,
-            content: fileContent,
+            path: file.path,
+            name: file.name,
+            content: file.content,
           });
           filesCreated++;
         } catch (e) {
-          console.error(`Agent ${task.agentIndex}: Failed to create ${filePath}`, e);
+          console.error(`Agent ${task.agentIndex}: Failed to create ${file.path}`, e);
         }
       }
 

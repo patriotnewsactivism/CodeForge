@@ -357,3 +357,67 @@ export const createFromAI = mutation({
     });
   },
 });
+
+// ─── Internal versions for scheduled actions (no auth check) ─────────────────
+// Used by swarm agents and multi-agent tasks that run as scheduled actions
+
+export const listWithContentInternal = query({
+  args: { projectId: v.id("projects") },
+  returns: v.array(
+    v.object({
+      _id: v.id("files"),
+      path: v.string(),
+      name: v.string(),
+      type: v.union(v.literal("file"), v.literal("folder")),
+      content: v.optional(v.union(v.string(), v.null())),
+      language: v.optional(v.union(v.string(), v.null())),
+    })
+  ),
+  handler: async (ctx, { projectId }) => {
+    const files = await ctx.db
+      .query("files")
+      .withIndex("by_project", (q) => q.eq("projectId", projectId))
+      .collect();
+    return files.map((f) => ({
+      _id: f._id,
+      path: f.path,
+      name: f.name,
+      type: f.type,
+      content: f.content,
+      language: f.language,
+    }));
+  },
+});
+
+export const bulkInsertInternal = mutation({
+  args: {
+    projectId: v.id("projects"),
+    files: v.array(
+      v.object({
+        path: v.string(),
+        name: v.string(),
+        type: v.union(v.literal("file"), v.literal("folder")),
+        content: v.optional(v.string()),
+        size: v.optional(v.number()),
+        githubSha: v.optional(v.string()),
+      })
+    ),
+  },
+  returns: v.null(),
+  handler: async (ctx, { projectId, files }) => {
+    for (const f of files) {
+      await ctx.db.insert("files", {
+        projectId,
+        path: f.path,
+        name: f.name,
+        type: f.type,
+        content: f.content || "",
+        language: f.type === "file" ? detectLanguage(f.name) : undefined,
+        size: f.size || f.content?.length || 0,
+        githubSha: f.githubSha,
+        isModified: false,
+      });
+    }
+    return null;
+  },
+});

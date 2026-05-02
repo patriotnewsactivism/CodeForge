@@ -94,6 +94,34 @@ export const remove = mutation({
   },
 });
 
+// Auto-create a default project for a user if they don't have one
+export const autoCreate = mutation({
+  args: { sessionId: v.id("sessions") },
+  returns: v.id("projects"),
+  handler: async (ctx, { sessionId }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+    // Check if user already has projects
+    const existing = await ctx.db
+      .query("projects")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .first();
+    if (existing) return existing._id;
+    // Create a default project
+    const projectId = await ctx.db.insert("projects", {
+      userId,
+      name: "My Project",
+      description: "Auto-created project",
+    });
+    // Link the session to this project
+    const session = await ctx.db.get(sessionId);
+    if (session && !session.projectId) {
+      await ctx.db.patch(sessionId, { projectId });
+    }
+    return projectId;
+  },
+});
+
 // Internal query that includes the token (for server-side use by agents)
 export const getWithToken = query({
   args: { projectId: v.id("projects") },
