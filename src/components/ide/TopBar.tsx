@@ -34,6 +34,10 @@ import {
   LogOut,
   Play,
   Menu,
+  Radio,
+  Search,
+  GitBranch,
+  Rocket,
 } from "lucide-react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { GitHubConnectDialog } from "./GitHubConnectDialog";
@@ -71,6 +75,14 @@ interface TopBarProps {
   onToggleRetro?: () => void;
   showArchitect?: boolean;
   onToggleArchitect?: () => void;
+  showStream?: boolean;
+  onToggleStream?: () => void;
+  showSearch?: boolean;
+  onToggleSearch?: () => void;
+  showGit?: boolean;
+  onToggleGit?: () => void;
+  showDeploy?: boolean;
+  onToggleDeploy?: () => void;
   githubConnected: boolean;
   isMobile?: boolean;
 }
@@ -92,6 +104,14 @@ export function TopBar({
   onToggleRetro,
   showArchitect,
   onToggleArchitect,
+  showStream,
+  onToggleStream,
+  showSearch,
+  onToggleSearch,
+  showGit,
+  onToggleGit,
+  showDeploy,
+  onToggleDeploy,
   githubConnected,
   isMobile = false,
 }: TopBarProps) {
@@ -363,6 +383,58 @@ export function TopBar({
         >
           <RefreshCw className="h-3.5 w-3.5" />
           Learn
+        </Button>
+      )}
+
+      {/* Stream toggle */}
+      {onToggleStream && (
+        <Button
+          variant={showStream ? "secondary" : "ghost"}
+          size="sm"
+          className="h-7 text-xs gap-1"
+          onClick={onToggleStream}
+        >
+          <Radio className="h-3.5 w-3.5" />
+          Live
+        </Button>
+      )}
+
+      {/* Search toggle */}
+      {onToggleSearch && (
+        <Button
+          variant={showSearch ? "secondary" : "ghost"}
+          size="sm"
+          className="h-7 text-xs gap-1"
+          onClick={onToggleSearch}
+        >
+          <Search className="h-3.5 w-3.5" />
+          Code
+        </Button>
+      )}
+
+      {/* Git toggle */}
+      {onToggleGit && (
+        <Button
+          variant={showGit ? "secondary" : "ghost"}
+          size="sm"
+          className="h-7 text-xs gap-1"
+          onClick={onToggleGit}
+        >
+          <GitBranch className="h-3.5 w-3.5" />
+          Git
+        </Button>
+      )}
+
+      {/* Deploy toggle */}
+      {onToggleDeploy && (
+        <Button
+          variant={showDeploy ? "secondary" : "ghost"}
+          size="sm"
+          className="h-7 text-xs gap-1"
+          onClick={onToggleDeploy}
+        >
+          <Rocket className="h-3.5 w-3.5" />
+          Ship
         </Button>
       )}
 

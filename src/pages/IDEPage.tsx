@@ -13,15 +13,19 @@ import { SuggestionsPanel } from "@/components/ide/SuggestionsPanel";
 import { MemoryPanel } from "@/components/ide/MemoryPanel";
 import { RetrospectivePanel } from "@/components/ide/RetrospectivePanel";
 import { ArchitectPanel } from "@/components/ide/ArchitectPanel";
+import { StreamingPanel } from "@/components/ide/StreamingPanel";
+import { RAGPanel } from "@/components/ide/RAGPanel";
+import { GitPanel } from "@/components/ide/GitPanel";
+import { DeployPanel } from "@/components/ide/DeployPanel";
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
 import { cn } from "@/lib/utils";
-import { FolderTree, FileCode, Play, MessageSquare, Lightbulb, Brain, RefreshCw, Hammer } from "lucide-react";
+import { FolderTree, FileCode, Play, MessageSquare, Lightbulb, Brain, RefreshCw, Hammer, Radio, Search, GitBranch, Rocket } from "lucide-react";
 
-type MobileTab = "files" | "editor" | "preview" | "chat" | "suggestions" | "memory" | "retro" | "architect";
+type MobileTab = "files" | "editor" | "preview" | "chat" | "suggestions" | "memory" | "retro" | "architect" | "stream" | "search" | "git" | "deploy";
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false);
@@ -52,6 +56,10 @@ export default function IDEPage() {
   const [showMemory, setShowMemory] = useState(false);
   const [showRetro, setShowRetro] = useState(false);
   const [showArchitect, setShowArchitect] = useState(false);
+  const [showStream, setShowStream] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+  const [showGit, setShowGit] = useState(false);
+  const [showDeploy, setShowDeploy] = useState(false);
   const [mobileTab, setMobileTab] = useState<MobileTab>("chat");
   const [externalPrompt, setExternalPrompt] = useState<string | null>(null);
 
@@ -151,6 +159,10 @@ export default function IDEPage() {
     { id: "memory", label: "Brain", icon: Brain },
     { id: "retro", label: "Learn", icon: RefreshCw },
     { id: "architect", label: "Spec", icon: Hammer },
+    { id: "stream", label: "Live", icon: Radio },
+    { id: "search", label: "Code", icon: Search },
+    { id: "git", label: "Git", icon: GitBranch },
+    { id: "deploy", label: "Ship", icon: Rocket },
     { id: "preview", label: "Preview", icon: Play },
     { id: "suggestions", label: "Ideas", icon: Lightbulb },
   ];
@@ -231,6 +243,18 @@ export default function IDEPage() {
           {mobileTab === "architect" && (
             <ArchitectPanel projectId={activeProjectId} />
           )}
+          {mobileTab === "stream" && (
+            <StreamingPanel projectId={activeProjectId} />
+          )}
+          {mobileTab === "search" && (
+            <RAGPanel projectId={activeProjectId} />
+          )}
+          {mobileTab === "git" && (
+            <GitPanel projectId={activeProjectId} />
+          )}
+          {mobileTab === "deploy" && (
+            <DeployPanel projectId={activeProjectId} />
+          )}
         </div>
 
         {/* Mobile bottom tab bar */}
@@ -287,6 +311,14 @@ export default function IDEPage() {
         onToggleRetro={() => setShowRetro(!showRetro)}
         showArchitect={showArchitect}
         onToggleArchitect={() => setShowArchitect(!showArchitect)}
+        showStream={showStream}
+        onToggleStream={() => setShowStream(!showStream)}
+        showSearch={showSearch}
+        onToggleSearch={() => setShowSearch(!showSearch)}
+        showGit={showGit}
+        onToggleGit={() => setShowGit(!showGit)}
+        showDeploy={showDeploy}
+        onToggleDeploy={() => setShowDeploy(!showDeploy)}
         githubConnected={githubSettings?.connected || false}
         isMobile={false}
       />
@@ -389,7 +421,7 @@ export default function IDEPage() {
           )}
 
           {/* Intelligence Panels (Memory / Retro / Architect) */}
-          {(showMemory || showRetro || showArchitect) && (
+          {(showMemory || showRetro || showArchitect || showStream || showSearch || showGit || showDeploy) && (
             <>
               <ResizableHandle withHandle />
               <ResizablePanel defaultSize={18} minSize={14} maxSize={30}>
@@ -398,6 +430,10 @@ export default function IDEPage() {
                     showArchitect && <ArchitectPanel key="arch" projectId={activeProjectId} />,
                     showMemory && <MemoryPanel key="mem" projectId={activeProjectId} />,
                     showRetro && <RetrospectivePanel key="retro" projectId={activeProjectId} />,
+                    showStream && <StreamingPanel key="stream" projectId={activeProjectId} />,
+                    showSearch && <RAGPanel key="search" projectId={activeProjectId} />,
+                    showGit && <GitPanel key="git" projectId={activeProjectId} />,
+                    showDeploy && <DeployPanel key="deploy" projectId={activeProjectId} />,
                   ].filter(Boolean);
 
                   if (panels.length === 1) return panels[0];
