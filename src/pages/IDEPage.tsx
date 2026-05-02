@@ -17,15 +17,18 @@ import { StreamingPanel } from "@/components/ide/StreamingPanel";
 import { RAGPanel } from "@/components/ide/RAGPanel";
 import { GitPanel } from "@/components/ide/GitPanel";
 import { DeployPanel } from "@/components/ide/DeployPanel";
+import { SwarmVisualizer } from "@/components/ide/SwarmVisualizer";
+import { AnalyticsPanel } from "@/components/ide/AnalyticsPanel";
+import { DiffPanel } from "@/components/ide/DiffPanel";
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
 import { cn } from "@/lib/utils";
-import { FolderTree, FileCode, Play, MessageSquare, Lightbulb, Brain, RefreshCw, Hammer, Radio, Search, GitBranch, Rocket } from "lucide-react";
+import { FolderTree, FileCode, Play, MessageSquare, Lightbulb, Brain, RefreshCw, Hammer, Radio, Search, GitBranch, Rocket, Network, BarChart3, Diff } from "lucide-react";
 
-type MobileTab = "files" | "editor" | "preview" | "chat" | "suggestions" | "memory" | "retro" | "architect" | "stream" | "search" | "git" | "deploy";
+type MobileTab = "files" | "editor" | "preview" | "chat" | "suggestions" | "memory" | "retro" | "architect" | "stream" | "search" | "git" | "deploy" | "swarm" | "analytics" | "diffs";
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false);
@@ -60,6 +63,9 @@ export default function IDEPage() {
   const [showSearch, setShowSearch] = useState(false);
   const [showGit, setShowGit] = useState(false);
   const [showDeploy, setShowDeploy] = useState(false);
+  const [showSwarm, setShowSwarm] = useState(false);
+  const [showAnalytics, setShowAnalytics] = useState(false);
+  const [showDiffs, setShowDiffs] = useState(false);
   const [mobileTab, setMobileTab] = useState<MobileTab>("chat");
   const [externalPrompt, setExternalPrompt] = useState<string | null>(null);
 
@@ -163,6 +169,9 @@ export default function IDEPage() {
     { id: "search", label: "Code", icon: Search },
     { id: "git", label: "Git", icon: GitBranch },
     { id: "deploy", label: "Ship", icon: Rocket },
+    { id: "swarm", label: "Swarm", icon: Network },
+    { id: "diffs", label: "Diffs", icon: Diff },
+    { id: "analytics", label: "Stats", icon: BarChart3 },
     { id: "preview", label: "Preview", icon: Play },
     { id: "suggestions", label: "Ideas", icon: Lightbulb },
   ];
@@ -255,16 +264,25 @@ export default function IDEPage() {
           {mobileTab === "deploy" && (
             <DeployPanel projectId={activeProjectId} />
           )}
+          {mobileTab === "swarm" && (
+            <SwarmVisualizer projectId={activeProjectId} />
+          )}
+          {mobileTab === "diffs" && (
+            <DiffPanel projectId={activeProjectId} />
+          )}
+          {mobileTab === "analytics" && (
+            <AnalyticsPanel projectId={activeProjectId} />
+          )}
         </div>
 
-        {/* Mobile bottom tab bar */}
-        <div className="flex items-center border-t border-border bg-card">
+        {/* Mobile bottom tab bar — horizontally scrollable */}
+        <div className="flex items-center border-t border-border bg-card overflow-x-auto scrollbar-none">
           {MOBILE_TABS.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setMobileTab(tab.id)}
               className={cn(
-                "flex-1 flex flex-col items-center gap-0.5 py-2 transition-colors",
+                "flex-none min-w-[3.5rem] flex flex-col items-center gap-0.5 py-2 px-1.5 transition-colors",
                 mobileTab === tab.id
                   ? "text-chart-3"
                   : "text-muted-foreground"
@@ -319,6 +337,12 @@ export default function IDEPage() {
         onToggleGit={() => setShowGit(!showGit)}
         showDeploy={showDeploy}
         onToggleDeploy={() => setShowDeploy(!showDeploy)}
+        showSwarm={showSwarm}
+        onToggleSwarm={() => setShowSwarm(!showSwarm)}
+        showAnalytics={showAnalytics}
+        onToggleAnalytics={() => setShowAnalytics(!showAnalytics)}
+        showDiffs={showDiffs}
+        onToggleDiffs={() => setShowDiffs(!showDiffs)}
         githubConnected={githubSettings?.connected || false}
         isMobile={false}
       />
@@ -421,7 +445,7 @@ export default function IDEPage() {
           )}
 
           {/* Intelligence Panels (Memory / Retro / Architect) */}
-          {(showMemory || showRetro || showArchitect || showStream || showSearch || showGit || showDeploy) && (
+          {(showMemory || showRetro || showArchitect || showStream || showSearch || showGit || showDeploy || showSwarm || showAnalytics || showDiffs) && (
             <>
               <ResizableHandle withHandle />
               <ResizablePanel defaultSize={18} minSize={14} maxSize={30}>
@@ -434,6 +458,9 @@ export default function IDEPage() {
                     showSearch && <RAGPanel key="search" projectId={activeProjectId} />,
                     showGit && <GitPanel key="git" projectId={activeProjectId} />,
                     showDeploy && <DeployPanel key="deploy" projectId={activeProjectId} />,
+                    showSwarm && <SwarmVisualizer key="swarm" projectId={activeProjectId} />,
+                    showDiffs && <DiffPanel key="diffs" projectId={activeProjectId} />,
+                    showAnalytics && <AnalyticsPanel key="analytics" projectId={activeProjectId} />,
                   ].filter(Boolean);
 
                   if (panels.length === 1) return panels[0];

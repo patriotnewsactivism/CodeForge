@@ -1271,3 +1271,29 @@ async function callAI(
 
   return { content, inputTokens, outputTokens, cost };
 }
+
+// ──────────────────────────────────────────────────────────────────
+// READ QUERIES — Used by frontend panels (SwarmVisualizer, DiffPanel)
+// ──────────────────────────────────────────────────────────────────
+
+/** All agent runs for a given mission (for the swarm tree). */
+export const getMissionAgents = query({
+  args: { missionId: v.id("missions") },
+  handler: async (ctx, { missionId }) => {
+    return await ctx.db
+      .query("agentRuns")
+      .withIndex("by_mission", q => q.eq("missionId", missionId))
+      .collect();
+  },
+});
+
+/** All activity log entries for a given mission (for diffs). */
+export const getMissionActivity = query({
+  args: { missionId: v.id("missions") },
+  handler: async (ctx, { missionId }) => {
+    return await ctx.db
+      .query("activityLog")
+      .withIndex("by_mission", q => q.eq("missionId", missionId))
+      .collect();
+  },
+});

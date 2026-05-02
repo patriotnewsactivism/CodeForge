@@ -38,6 +38,9 @@ import {
   Search,
   GitBranch,
   Rocket,
+  Network,
+  BarChart3,
+  Diff,
 } from "lucide-react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { GitHubConnectDialog } from "./GitHubConnectDialog";
@@ -83,6 +86,12 @@ interface TopBarProps {
   onToggleGit?: () => void;
   showDeploy?: boolean;
   onToggleDeploy?: () => void;
+  showSwarm?: boolean;
+  onToggleSwarm?: () => void;
+  showAnalytics?: boolean;
+  onToggleAnalytics?: () => void;
+  showDiffs?: boolean;
+  onToggleDiffs?: () => void;
   githubConnected: boolean;
   isMobile?: boolean;
 }
@@ -112,6 +121,12 @@ export function TopBar({
   onToggleGit,
   showDeploy,
   onToggleDeploy,
+  showSwarm,
+  onToggleSwarm,
+  showAnalytics,
+  onToggleAnalytics,
+  showDiffs,
+  onToggleDiffs,
   githubConnected,
   isMobile = false,
 }: TopBarProps) {
@@ -437,6 +452,39 @@ export function TopBar({
           Ship
         </Button>
       )}
+
+      {/* Swarm toggle */}
+      <Button
+        variant={showSwarm ? "secondary" : "ghost"}
+        size="sm"
+        className="h-7 text-xs gap-1"
+        onClick={onToggleSwarm}
+      >
+        <Network className="h-3.5 w-3.5" />
+        Swarm
+      </Button>
+
+      {/* Diffs toggle */}
+      <Button
+        variant={showDiffs ? "secondary" : "ghost"}
+        size="sm"
+        className="h-7 text-xs gap-1"
+        onClick={onToggleDiffs}
+      >
+        <Diff className="h-3.5 w-3.5" />
+        Diffs
+      </Button>
+
+      {/* Analytics toggle */}
+      <Button
+        variant={showAnalytics ? "secondary" : "ghost"}
+        size="sm"
+        className="h-7 text-xs gap-1"
+        onClick={onToggleAnalytics}
+      >
+        <BarChart3 className="h-3.5 w-3.5" />
+        Stats
+      </Button>
 
       {/* Chat toggle */}
       <Button
