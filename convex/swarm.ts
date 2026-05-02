@@ -386,6 +386,27 @@ export const launchMission = action({
       model: "orchestrator",
     });
 
+    // 🌿 GIT: Create a branch for this mission
+    try {
+      const branchName = await ctx.runAction(api.gitops.generateBranchName, {
+        missionPrompt: prompt,
+      });
+      await ctx.runAction(api.gitops.createBranch, {
+        projectId,
+        missionId,
+        branchName,
+      });
+    } catch (e) {
+      console.error("Git branch creation failed (non-fatal):", e);
+    }
+
+    // 🔍 RAG: Auto-index project for codebase search
+    try {
+      await ctx.runAction(api.rag.indexProject, { projectId });
+    } catch (e) {
+      console.error("RAG indexing failed (non-fatal):", e);
+    }
+
     // Schedule the orchestrator to run (non-blocking)
     await ctx.scheduler.runAfter(0, api.swarm.runOrchestrator, {
       missionId,
@@ -482,8 +503,26 @@ Respond with ONLY a JSON object:
   ]
 }`;
 
+      // 📡 Stream: orchestrator planning
+      await ctx.runMutation(api.streaming.pushThought, {
+        agentRunId: orchestratorId,
+        missionId,
+        phase: "planning",
+        content: `Analyzing request and creating execution plan...\n\n"${prompt}"`,
+      });
+
       const modelConfig = getModel("grok-4.1-fast");
       const planResponse = await callAI(modelConfig, planPrompt, prompt);
+
+      // 📡 Stream: plan result
+      await ctx.runMutation(api.streaming.pushThought, {
+        agentRunId: orchestratorId,
+        missionId,
+        phase: "planning",
+        content: planResponse.content.slice(0, 600),
+        tokensSoFar: planResponse.inputTokens + planResponse.outputTokens,
+        costSoFar: planResponse.cost,
+      });
 
       // Parse the plan
       let plan: {
@@ -672,6 +711,14 @@ export const runAgent = action({
         agentModel: agent.model,
       });
 
+      // 📡 Stream: reasoning phase
+      await ctx.runMutation(api.streaming.pushThought, {
+        agentRunId,
+        missionId,
+        phase: "reasoning",
+        content: `Analyzing task: ${agent.title}\n${agent.description}`,
+      });
+
       // Get project files
       const files = await ctx.runQuery(api.files.listWithContent, { projectId });
       const fileSummary = files
@@ -695,7 +742,19 @@ export const runAgent = action({
         console.error("Memory injection failed (non-fatal):", e);
       }
 
-      // Build role-specific prompt (with memory injected)
+      // 🔍 RAG CONTEXT — Find relevant codebase context for this task
+      let ragContext = "";
+      try {
+        ragContext = await ctx.runAction(api.rag.buildContext, {
+          projectId,
+          query: `${agent.title} ${agent.description}`,
+          maxTokens: 3000,
+        });
+      } catch (e) {
+        console.error("RAG context failed (non-fatal):", e);
+      }
+
+      // Build role-specific prompt (with memory + RAG injected)
       const systemPrompt = buildAgentPrompt(
         agent.role,
         agent.title,
@@ -704,7 +763,8 @@ export const runAgent = action({
         fileSummary,
         agent.depth,
         canSpawnChildren ?? false,
-        memoryContext
+        memoryContext,
+        ragContext
       );
 
       // Mark as coding
@@ -722,6 +782,14 @@ export const runAgent = action({
         agentModel: agent.model,
       });
 
+      // 📡 Stream: coding phase
+      await ctx.runMutation(api.streaming.pushThought, {
+        agentRunId,
+        missionId,
+        phase: "coding",
+        content: `Generating code for: ${agent.title}`,
+      });
+
       // Call the AI
       const modelConfig = getModel(agent.model);
       const result = await callAI(
@@ -729,6 +797,16 @@ export const runAgent = action({
         systemPrompt,
         `Execute your task: ${agent.title}\n\nDetails: ${agent.description}`
       );
+
+      // 📡 Stream: AI response with token stats
+      await ctx.runMutation(api.streaming.pushThought, {
+        agentRunId,
+        missionId,
+        phase: "coding",
+        content: result.content.slice(0, 500) + (result.content.length > 500 ? "\n..." : ""),
+        tokensSoFar: result.inputTokens + result.outputTokens,
+        costSoFar: result.cost,
+      });
 
       // Parse and create files
       let filesCreated = 0;
@@ -993,6 +1071,48 @@ export const checkMissionComplete = action({
         model: "swarm",
       });
 
+      // 🌿 GIT: Commit agent work to branch
+      try {
+        const projectId = agents[0].projectId;
+        const branches = await ctx.runQuery(api.gitops.getBranches, { missionId });
+        const activeBranch = branches.find((b: { status: string }) => b.status === "active");
+        if (activeBranch) {
+          // Get all files created/modified
+          const allFiles = await ctx.runQuery(api.files.listWithContent, { projectId });
+          const changedFiles = allFiles
+            .filter((f: { type: string; content?: string | null; isModified?: boolean }) =>
+              f.type === "file" && f.content)
+            .map((f: { path: string; content?: string | null }) => ({
+              path: f.path,
+              content: f.content || "",
+            }));
+
+          if (changedFiles.length > 0) {
+            const commitResult = await ctx.runAction(api.gitops.commitFiles, {
+              projectId,
+              missionId,
+              branchName: activeBranch.branchName,
+              message: `[CodeForge] ${completed} agents completed: ${totalFiles} files\n\nMission: ${agents[0].description?.slice(0, 100) || "Autonomous coding"}`,
+              files: changedFiles,
+            });
+
+            if (commitResult.success) {
+              // Create PR
+              const missionData = await ctx.runQuery(api.missions.get, { missionId });
+              await ctx.runAction(api.gitops.createPR, {
+                projectId,
+                missionId,
+                branchName: activeBranch.branchName,
+                title: `[CodeForge] ${missionData?.prompt?.slice(0, 80) || "Agent work"}`,
+                body: `## CodeForge Agent Swarm Results\n\n✅ ${completed} agents completed | ❌ ${failed} failed\n📄 ${totalFiles} files created/modified | 💰 $${totalCost.toFixed(4)}\n\nThis PR was automatically created by the CodeForge autonomous coding platform.`,
+              });
+            }
+          }
+        }
+      } catch (e) {
+        console.error("Git commit/PR failed (non-fatal):", e);
+      }
+
       // 🔄 SELF-IMPROVEMENT — Run retrospective after mission completes
       try {
         const mission = await ctx.runQuery(api.swarm.getActiveMission, {
@@ -1029,7 +1149,8 @@ function buildAgentPrompt(
   fileSummary: string,
   depth: number,
   canSpawnChildren: boolean,
-  memoryContext?: string
+  memoryContext?: string,
+  ragContext?: string
 ): string {
   const roleInfo = AGENT_ROLES[role] || AGENT_ROLES.coder;
 
@@ -1098,6 +1219,7 @@ ${refineInstructions}
 CURRENT PROJECT FILES:
 ${fileSummary || "(empty project — creating from scratch)"}
 ${memoryContext ? `\n${memoryContext}` : ""}
+${ragContext ? `\n${ragContext}` : ""}
 Now execute your task. Generate the code.`;
 }
 

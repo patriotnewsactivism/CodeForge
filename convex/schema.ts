@@ -337,6 +337,81 @@ const schema = defineSchema({
     .index("by_mission", ["missionId"])
     .index("by_project", ["projectId"]),
 
+  // ──────────────────────────────────────────────────────────────────
+  // STREAMING AGENT THOUGHT PROCESS
+  // ──────────────────────────────────────────────────────────────────
+  thoughtStream: defineTable({
+    agentRunId: v.id("agentRuns"),
+    missionId: v.id("missions"),
+    phase: v.string(),
+    content: v.string(),
+    codeFile: v.optional(v.string()),
+    codeLanguage: v.optional(v.string()),
+    tokensSoFar: v.optional(v.number()),
+    costSoFar: v.optional(v.number()),
+    timestamp: v.number(),
+  })
+    .index("by_mission", ["missionId"])
+    .index("by_agent", ["agentRunId"])
+    .index("by_mission_time", ["missionId", "timestamp"]),
+
+  // ──────────────────────────────────────────────────────────────────
+  // CODEBASE RAG — Vector Search Chunks
+  // ──────────────────────────────────────────────────────────────────
+  codeChunks: defineTable({
+    projectId: v.id("projects"),
+    filePath: v.string(),
+    fileName: v.string(),
+    language: v.string(),
+    content: v.string(),
+    startLine: v.number(),
+    endLine: v.number(),
+    chunkType: v.string(),
+    symbolName: v.optional(v.string()),
+    searchText: v.string(),
+    indexedAt: v.number(),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_project_file", ["projectId", "filePath"])
+    .index("by_project_language", ["projectId", "language"]),
+
+  // ──────────────────────────────────────────────────────────────────
+  // GIT INTEGRATION — Branch per Task, Auto-PR
+  // ──────────────────────────────────────────────────────────────────
+  gitBranches: defineTable({
+    missionId: v.id("missions"),
+    projectId: v.id("projects"),
+    branchName: v.string(),
+    baseSha: v.string(),
+    baseBranch: v.string(),
+    status: v.string(), // "active", "merged", "pr_created", "closed"
+    commits: v.number(),
+    prNumber: v.optional(v.number()),
+    prUrl: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_mission", ["missionId"])
+    .index("by_project", ["projectId"]),
+
+  // ──────────────────────────────────────────────────────────────────
+  // AUTO-DEPLOY PIPELINE
+  // ──────────────────────────────────────────────────────────────────
+  deployments: defineTable({
+    missionId: v.id("missions"),
+    projectId: v.id("projects"),
+    environment: v.string(),
+    triggeredBy: v.string(),
+    commitSha: v.optional(v.string()),
+    provider: v.string(),
+    status: v.string(), // "pending", "deploying", "success", "failed"
+    url: v.optional(v.string()),
+    message: v.optional(v.string()),
+    startedAt: v.number(),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_mission", ["missionId"]),
+
   // ─── Prompt Refinements (agent self-updates mid-mission) ────────
   promptRefinements: defineTable({
     agentRunId: v.id("agentRuns"),

@@ -93,3 +93,25 @@ export const remove = mutation({
     return null;
   },
 });
+
+// Internal query that includes the token (for server-side use by agents)
+export const getWithToken = query({
+  args: { projectId: v.id("projects") },
+  returns: v.union(
+    v.object({
+      _id: v.id("projects"),
+      _creationTime: v.number(),
+      userId: v.id("users"),
+      name: v.string(),
+      description: v.optional(v.string()),
+      githubRepo: v.optional(v.string()),
+      githubBranch: v.optional(v.string()),
+      githubToken: v.optional(v.string()),
+      lastSyncedAt: v.optional(v.number()),
+    }),
+    v.null()
+  ),
+  handler: async (ctx, { projectId }) => {
+    return await ctx.db.get(projectId);
+  },
+});
