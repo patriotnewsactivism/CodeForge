@@ -4,51 +4,20 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 
 export const list = query({
   args: {},
-  returns: v.array(
-    v.object({
-      _id: v.id("projects"),
-      _creationTime: v.number(),
-      userId: v.id("users"),
-      name: v.string(),
-      description: v.optional(v.string()),
-      githubRepo: v.optional(v.string()),
-      githubBranch: v.optional(v.string()),
-      lastSyncedAt: v.optional(v.number()),
-    })
-  ),
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) return [];
-    const projects = await ctx.db
+    return await ctx.db
       .query("projects")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
-    return projects.map(({ githubToken, ...p }) => p);
   },
 });
 
 export const get = query({
   args: { projectId: v.id("projects") },
-  returns: v.union(
-    v.object({
-      _id: v.id("projects"),
-      _creationTime: v.number(),
-      userId: v.id("users"),
-      name: v.string(),
-      description: v.optional(v.string()),
-      githubRepo: v.optional(v.string()),
-      githubBranch: v.optional(v.string()),
-      lastSyncedAt: v.optional(v.number()),
-    }),
-    v.null()
-  ),
   handler: async (ctx, { projectId }) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) return null;
-    const project = await ctx.db.get(projectId);
-    if (!project || project.userId !== userId) return null;
-    const { githubToken, ...p } = project;
-    return p;
+    return await ctx.db.get(projectId);
   },
 });
 
@@ -57,89 +26,59 @@ export const create = mutation({
     name: v.string(),
     description: v.optional(v.string()),
     githubRepo: v.optional(v.string()),
-    githubBranch: v.optional(v.string()),
   },
-  returns: v.id("projects"),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
     return await ctx.db.insert("projects", {
       userId,
-      name: args.name,
-      description: args.description,
-      githubRepo: args.githubRepo,
-      githubBranch: args.githubBranch || "main",
+      ...args,
     });
+  },
+});
+
+export const update = mutation({
+  args: {
+    projectId: v.id("projects"),
+    name: v.optional(v.string()),
+    description: v.optional(v.string()),
+  },
+  handler: async (ctx, { projectId, ...updates }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+    const filtered = Object.fromEntries(
+      Object.entries(updates).filter(([, v]) => v !== undefined)
+    );
+    if (Object.keys(filtered).length > 0) {
+      await ctx.db.patch(projectId, filtered);
+    }
   },
 });
 
 export const remove = mutation({
   args: { projectId: v.id("projects") },
-  returns: v.null(),
   handler: async (ctx, { projectId }) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
-    const project = await ctx.db.get(projectId);
-    if (!project || project.userId !== userId) throw new Error("Not found");
-    // Delete all files
+
+    // Delete all files in the project
     const files = await ctx.db
       .query("files")
       .withIndex("by_project", (q) => q.eq("projectId", projectId))
       .collect();
-    for (const file of files) {
-      await ctx.db.delete(file._id);
-    }
+    for (const f of files) await ctx.db.delete(f._id);
+
     await ctx.db.delete(projectId);
-    return null;
   },
 });
 
-// Auto-create a default project for a user if they don't have one
-export const autoCreate = mutation({
-  args: { sessionId: v.id("sessions") },
-  returns: v.id("projects"),
-  handler: async (ctx, { sessionId }) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) throw new Error("Not authenticated");
-    // Check if user already has projects
-    const existing = await ctx.db
-      .query("projects")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .first();
-    if (existing) return existing._id;
-    // Create a default project
-    const projectId = await ctx.db.insert("projects", {
-      userId,
-      name: "My Project",
-      description: "Auto-created project",
-    });
-    // Link the session to this project
-    const session = await ctx.db.get(sessionId);
-    if (session && !session.projectId) {
-      await ctx.db.patch(sessionId, { projectId });
-    }
-    return projectId;
-  },
-});
-
-// Internal query that includes the token (for server-side use by agents)
-export const getWithToken = query({
+export const listMissions = query({
   args: { projectId: v.id("projects") },
-  returns: v.union(
-    v.object({
-      _id: v.id("projects"),
-      _creationTime: v.number(),
-      userId: v.id("users"),
-      name: v.string(),
-      description: v.optional(v.string()),
-      githubRepo: v.optional(v.string()),
-      githubBranch: v.optional(v.string()),
-      githubToken: v.optional(v.string()),
-      lastSyncedAt: v.optional(v.number()),
-    }),
-    v.null()
-  ),
   handler: async (ctx, { projectId }) => {
-    return await ctx.db.get(projectId);
+    return await ctx.db
+      .query("missions")
+      .withIndex("by_project", (q) => q.eq("projectId", projectId))
+      .order("desc")
+      .take(20);
   },
 });

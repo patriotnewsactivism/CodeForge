@@ -4,24 +4,6 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 
 export const listBySession = query({
   args: { sessionId: v.id("sessions") },
-  returns: v.array(
-    v.object({
-      _id: v.id("messages"),
-      _creationTime: v.number(),
-      sessionId: v.id("sessions"),
-      role: v.union(
-        v.literal("user"),
-        v.literal("assistant"),
-        v.literal("system")
-      ),
-      content: v.string(),
-      model: v.optional(v.string()),
-      inputTokens: v.optional(v.number()),
-      outputTokens: v.optional(v.number()),
-      cost: v.optional(v.number()),
-      fileContext: v.optional(v.string()),
-    })
-  ),
   handler: async (ctx, { sessionId }) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) return [];
@@ -41,15 +23,13 @@ export const send = mutation({
     role: v.union(
       v.literal("user"),
       v.literal("assistant"),
-      v.literal("system")
+      v.literal("system"),
+      v.literal("tool_summary"),
     ),
     model: v.optional(v.string()),
-    inputTokens: v.optional(v.number()),
-    outputTokens: v.optional(v.number()),
     cost: v.optional(v.number()),
-    fileContext: v.optional(v.string()),
+    missionId: v.optional(v.id("missions")),
   },
-  returns: v.id("messages"),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
@@ -61,17 +41,14 @@ export const send = mutation({
       role: args.role,
       content: args.content,
       model: args.model,
-      inputTokens: args.inputTokens,
-      outputTokens: args.outputTokens,
       cost: args.cost,
-      fileContext: args.fileContext,
+      missionId: args.missionId,
     });
   },
 });
 
 export const clearSession = mutation({
   args: { sessionId: v.id("sessions") },
-  returns: v.null(),
   handler: async (ctx, { sessionId }) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
@@ -84,12 +61,6 @@ export const clearSession = mutation({
     for (const msg of messages) {
       await ctx.db.delete(msg._id);
     }
-    // Reset cost tracking
-    await ctx.db.patch(sessionId, {
-      totalInputTokens: 0,
-      totalOutputTokens: 0,
-      totalCost: 0,
-    });
-    return null;
+    await ctx.db.patch(sessionId, { totalCost: 0 });
   },
 });

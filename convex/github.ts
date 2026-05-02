@@ -345,7 +345,7 @@ export const importRepo = action({
                 type: "file" as const,
                 content,
                 size: content.length,
-                githubSha: fileJson.sha,
+                // sha tracked server-side if needed
               };
             } catch {
               return null;

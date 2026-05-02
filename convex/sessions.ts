@@ -4,20 +4,6 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 
 export const list = query({
   args: {},
-  returns: v.array(
-    v.object({
-      _id: v.id("sessions"),
-      _creationTime: v.number(),
-      userId: v.id("users"),
-      projectId: v.optional(v.id("projects")),
-      name: v.string(),
-      model: v.string(),
-      totalInputTokens: v.optional(v.number()),
-      totalOutputTokens: v.optional(v.number()),
-      totalCost: v.optional(v.number()),
-      isActive: v.boolean(),
-    })
-  ),
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) return [];
@@ -28,7 +14,6 @@ export const list = query({
   },
 });
 
-// Get a session by ID (used internally by swarm)
 export const get = query({
   args: { sessionId: v.id("sessions") },
   handler: async (ctx, { sessionId }) => {
@@ -38,21 +23,6 @@ export const get = query({
 
 export const getActive = query({
   args: {},
-  returns: v.union(
-    v.object({
-      _id: v.id("sessions"),
-      _creationTime: v.number(),
-      userId: v.id("users"),
-      projectId: v.optional(v.id("projects")),
-      name: v.string(),
-      model: v.string(),
-      totalInputTokens: v.optional(v.number()),
-      totalOutputTokens: v.optional(v.number()),
-      totalCost: v.optional(v.number()),
-      isActive: v.boolean(),
-    }),
-    v.null()
-  ),
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) return null;
@@ -71,7 +41,6 @@ export const create = mutation({
     model: v.string(),
     projectId: v.optional(v.id("projects")),
   },
-  returns: v.id("sessions"),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
@@ -90,8 +59,6 @@ export const create = mutation({
       projectId: args.projectId,
       name: args.name,
       model: args.model,
-      totalInputTokens: 0,
-      totalOutputTokens: 0,
       totalCost: 0,
       isActive: true,
     });
@@ -103,33 +70,25 @@ export const updateModel = mutation({
     sessionId: v.id("sessions"),
     model: v.string(),
   },
-  returns: v.null(),
   handler: async (ctx, { sessionId, model }) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
     const session = await ctx.db.get(sessionId);
     if (!session || session.userId !== userId) throw new Error("Not found");
     await ctx.db.patch(sessionId, { model });
-    return null;
   },
 });
 
 export const addCost = mutation({
   args: {
     sessionId: v.id("sessions"),
-    inputTokens: v.number(),
-    outputTokens: v.number(),
     cost: v.number(),
   },
-  returns: v.null(),
-  handler: async (ctx, { sessionId, inputTokens, outputTokens, cost }) => {
+  handler: async (ctx, { sessionId, cost }) => {
     const session = await ctx.db.get(sessionId);
     if (!session) return null;
     await ctx.db.patch(sessionId, {
-      totalInputTokens: (session.totalInputTokens || 0) + inputTokens,
-      totalOutputTokens: (session.totalOutputTokens || 0) + outputTokens,
       totalCost: (session.totalCost || 0) + cost,
     });
-    return null;
   },
 });
