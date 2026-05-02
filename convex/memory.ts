@@ -224,7 +224,7 @@ export const buildPromptContext = action({
     taskDescription: v.string(),
   },
   returns: v.string(),
-  handler: async (ctx, { projectId, agentRole, taskDescription }) => {
+  handler: async (ctx, { projectId, agentRole, taskDescription: _taskDescription }) => {
     // Get top memories for this project
     const memories = await ctx.runQuery(api.memory.getTopMemories, {
       projectId,

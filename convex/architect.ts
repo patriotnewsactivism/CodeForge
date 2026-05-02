@@ -112,7 +112,7 @@ export const analyzeAndExpand = action({
     rawPrompt: v.string(),
     fastMode: v.optional(v.boolean()), // Skip clarifying questions
   },
-  handler: async (ctx, { projectId, rawPrompt, fastMode }) => {
+  handler: async (ctx, { projectId, rawPrompt, fastMode: _fastMode }) => {
     // 1. Gather all context
     const files = await ctx.runQuery(api.files.listWithContent, { projectId });
     const fileIndex = files

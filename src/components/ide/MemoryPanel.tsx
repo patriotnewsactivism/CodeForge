@@ -16,16 +16,13 @@ import { cn } from "@/lib/utils";
 import { useState } from "react";
 import {
   Brain,
-  CheckCircle2,
   ChevronDown,
   ChevronRight,
-  Flame,
   Lightbulb,
   Sparkles,
   ThumbsDown,
   ThumbsUp,
   TrendingUp,
-  XCircle,
   Zap,
 } from "lucide-react";
 
