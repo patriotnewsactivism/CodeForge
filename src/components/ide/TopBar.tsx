@@ -21,12 +21,15 @@ import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { toast } from "sonner";
 import {
+  Brain,
   Code2,
+  Hammer,
   FolderGit2,
   Github,
   Lightbulb,
   MessageSquare,
   Plus,
+  RefreshCw,
   Settings,
   LogOut,
   Play,
@@ -62,6 +65,12 @@ interface TopBarProps {
   onTogglePreview?: () => void;
   showSuggestions?: boolean;
   onToggleSuggestions?: () => void;
+  showMemory?: boolean;
+  onToggleMemory?: () => void;
+  showRetro?: boolean;
+  onToggleRetro?: () => void;
+  showArchitect?: boolean;
+  onToggleArchitect?: () => void;
   githubConnected: boolean;
   isMobile?: boolean;
 }
@@ -77,6 +86,12 @@ export function TopBar({
   onTogglePreview,
   showSuggestions,
   onToggleSuggestions,
+  showMemory,
+  onToggleMemory,
+  showRetro,
+  onToggleRetro,
+  showArchitect,
+  onToggleArchitect,
   githubConnected,
   isMobile = false,
 }: TopBarProps) {
@@ -309,6 +324,45 @@ export function TopBar({
         >
           <Lightbulb className="h-3.5 w-3.5" />
           Ideas
+        </Button>
+      )}
+
+      {/* Architect toggle */}
+      {onToggleArchitect && (
+        <Button
+          variant={showArchitect ? "secondary" : "ghost"}
+          size="sm"
+          className="h-7 text-xs gap-1"
+          onClick={onToggleArchitect}
+        >
+          <Hammer className="h-3.5 w-3.5" />
+          Spec
+        </Button>
+      )}
+
+      {/* Memory toggle */}
+      {onToggleMemory && (
+        <Button
+          variant={showMemory ? "secondary" : "ghost"}
+          size="sm"
+          className="h-7 text-xs gap-1"
+          onClick={onToggleMemory}
+        >
+          <Brain className="h-3.5 w-3.5" />
+          Brain
+        </Button>
+      )}
+
+      {/* Retro toggle */}
+      {onToggleRetro && (
+        <Button
+          variant={showRetro ? "secondary" : "ghost"}
+          size="sm"
+          className="h-7 text-xs gap-1"
+          onClick={onToggleRetro}
+        >
+          <RefreshCw className="h-3.5 w-3.5" />
+          Learn
         </Button>
       )}
 

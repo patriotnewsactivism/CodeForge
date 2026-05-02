@@ -136,7 +136,7 @@ export const generate = action({
       .filter((f: { type: string }) => f.type === "file")
       .slice(0, 30) // Limit to 30 files for token budget
       .map(
-        (f: { path: string; content: string | null }) =>
+        (f: { path: string; content?: string }) =>
           `--- ${f.path} ---\n${(f.content || "").slice(0, 1500)}`
       )
       .join("\n\n");

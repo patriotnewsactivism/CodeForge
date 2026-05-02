@@ -319,7 +319,7 @@ export const executeAgent = action({
   handler: async (ctx, { taskId, projectId, sessionId, userPrompt }) => {
     // Get the task details
     const tasks = await ctx.runQuery(api.agents.listBySession, { sessionId });
-    const task = tasks.find((t) => t._id === taskId);
+    const task = tasks.find((t: { _id: string }) => t._id === taskId);
     if (!task) return null;
 
     // Mark as running
@@ -335,7 +335,7 @@ export const executeAgent = action({
       .filter((f: { type: string }) => f.type === "file")
       .slice(0, 20)
       .map(
-        (f: { path: string; content: string | null }) =>
+        (f: { path: string; content?: string }) =>
           `--- ${f.path} ---\n${(f.content || "").slice(0, 1000)}`
       )
       .join("\n\n");

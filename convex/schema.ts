@@ -192,6 +192,84 @@ const schema = defineSchema({
     .index("by_mission_time", ["missionId", "timestamp"]),
 
   // ──────────────────────────────────────────────────────────────────
+  // AGENT MEMORY SYSTEM — Persistent Brain
+  // ──────────────────────────────────────────────────────────────────
+
+  // Memory entries — granular facts the swarm learns over time
+  // Each entry is a discrete piece of knowledge: a pattern, a bug fix,
+  // a codebase convention, a user preference, etc.
+  agentMemory: defineTable({
+    projectId: v.id("projects"),
+    category: v.union(
+      v.literal("pattern"),        // Code patterns that work well
+      v.literal("antipattern"),    // Things that failed / should be avoided
+      v.literal("convention"),     // Project conventions (naming, structure)
+      v.literal("bugfix"),         // Bugs encountered and how they were fixed
+      v.literal("architecture"),   // Architectural decisions and rationale
+      v.literal("dependency"),     // Package/dependency knowledge
+      v.literal("preference"),     // User preferences learned over time
+      v.literal("performance"),    // Performance insights
+      v.literal("security"),       // Security-related learnings
+      v.literal("general"),        // Catch-all
+    ),
+    title: v.string(),             // Short label: "Use Tailwind cn() for conditional classes"
+    content: v.string(),           // Detailed description of the learning
+    context: v.optional(v.string()), // What triggered this (file path, error msg, etc.)
+    confidence: v.number(),        // 0.0-1.0 — how confident the system is in this memory
+    useCount: v.number(),          // How many times this memory has been injected into prompts
+    lastUsedAt: v.optional(v.number()),
+    sourceAgentRole: v.optional(v.string()),  // Which agent role created this
+    sourceMissionId: v.optional(v.id("missions")), // Mission that produced this
+    tags: v.optional(v.array(v.string())),    // Searchable tags: ["react", "auth", "css"]
+    isActive: v.boolean(),         // Can be deactivated if proven wrong
+  })
+    .index("by_project", ["projectId"])
+    .index("by_project_category", ["projectId", "category"])
+    .index("by_project_active", ["projectId", "isActive"])
+    .index("by_confidence", ["projectId", "confidence"]),
+
+  // Retrospectives — post-mission analysis by the Retrospective agent
+  retrospectives: defineTable({
+    missionId: v.id("missions"),
+    projectId: v.id("projects"),
+    summary: v.string(),           // High-level "what happened"
+    whatWorked: v.array(v.string()), // Things that went well
+    whatFailed: v.array(v.string()), // Things that went wrong
+    improvements: v.array(v.string()), // Actionable suggestions for next time
+    patternsFound: v.array(v.string()), // New patterns discovered
+    score: v.number(),             // 0-100 overall mission quality score
+    agentPerformance: v.optional(v.string()), // JSON: per-agent scoring breakdown
+    memoriesCreated: v.optional(v.number()),  // How many new memories were stored
+    model: v.string(),             // Model used for the retrospective
+    cost: v.optional(v.number()),
+    createdAt: v.number(),
+  })
+    .index("by_mission", ["missionId"])
+    .index("by_project", ["projectId"]),
+
+  // Agent message bus — inter-agent communication
+  agentMessages: defineTable({
+    missionId: v.id("missions"),
+    fromAgentId: v.id("agentRuns"),
+    toAgentId: v.optional(v.id("agentRuns")), // null = broadcast to all
+    type: v.union(
+      v.literal("warning"),        // "Watch out for X"
+      v.literal("context"),        // "I found relevant info"
+      v.literal("dependency"),     // "I need X before I can continue"
+      v.literal("conflict"),       // "My changes conflict with Y"
+      v.literal("suggestion"),     // "You should also consider Z"
+      v.literal("handoff"),        // "I'm done, here's what the next agent needs"
+    ),
+    content: v.string(),
+    filePath: v.optional(v.string()),
+    isRead: v.boolean(),
+    timestamp: v.number(),
+  })
+    .index("by_mission", ["missionId"])
+    .index("by_recipient", ["toAgentId"])
+    .index("by_mission_unread", ["missionId", "isRead"]),
+
+  // ──────────────────────────────────────────────────────────────────
   // LEGACY — keep for backward compat, will be migrated
   // ──────────────────────────────────────────────────────────────────
 
@@ -229,6 +307,47 @@ const schema = defineSchema({
     username: v.optional(v.string()),
     avatarUrl: v.optional(v.string()),
   }).index("by_user", ["userId"]),
+
+  // ─── Mission Architect: Detailed Specs ──────────────────────────
+  missionSpecs: defineTable({
+    missionId: v.id("missions"),
+    projectId: v.id("projects"),
+    originalPrompt: v.string(),
+    expandedSpec: v.string(),
+    techDecisions: v.array(v.object({
+      area: v.string(),
+      decision: v.string(),
+      reasoning: v.string(),
+    })),
+    architecture: v.string(),
+    agentPrompts: v.array(v.object({
+      role: v.string(),
+      title: v.string(),
+      refinedPrompt: v.string(),
+      model: v.string(),
+      priority: v.number(),
+      dependencies: v.array(v.string()),
+      acceptanceCriteria: v.array(v.string()),
+    })),
+    edgeCases: v.array(v.string()),
+    qualityGates: v.array(v.string()),
+    createdAt: v.number(),
+    version: v.number(),
+  })
+    .index("by_mission", ["missionId"])
+    .index("by_project", ["projectId"]),
+
+  // ─── Prompt Refinements (agent self-updates mid-mission) ────────
+  promptRefinements: defineTable({
+    agentRunId: v.id("agentRuns"),
+    missionId: v.id("missions"),
+    originalPrompt: v.string(),
+    refinedPrompt: v.string(),
+    reason: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_mission", ["missionId"])
+    .index("by_agent", ["agentRunId"]),
 });
 
 export default schema;

@@ -10,15 +10,18 @@ import { TopBar } from "@/components/ide/TopBar";
 import { CostBar } from "@/components/ide/CostBar";
 import { WelcomePanel } from "@/components/ide/WelcomePanel";
 import { SuggestionsPanel } from "@/components/ide/SuggestionsPanel";
+import { MemoryPanel } from "@/components/ide/MemoryPanel";
+import { RetrospectivePanel } from "@/components/ide/RetrospectivePanel";
+import { ArchitectPanel } from "@/components/ide/ArchitectPanel";
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
 import { cn } from "@/lib/utils";
-import { FolderTree, FileCode, Play, MessageSquare, Lightbulb } from "lucide-react";
+import { FolderTree, FileCode, Play, MessageSquare, Lightbulb, Brain, RefreshCw, Hammer } from "lucide-react";
 
-type MobileTab = "files" | "editor" | "preview" | "chat" | "suggestions";
+type MobileTab = "files" | "editor" | "preview" | "chat" | "suggestions" | "memory" | "retro" | "architect";
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false);
@@ -46,6 +49,9 @@ export default function IDEPage() {
   const [showChat, setShowChat] = useState(true);
   const [showPreview, setShowPreview] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [showMemory, setShowMemory] = useState(false);
+  const [showRetro, setShowRetro] = useState(false);
+  const [showArchitect, setShowArchitect] = useState(false);
   const [mobileTab, setMobileTab] = useState<MobileTab>("chat");
   const [externalPrompt, setExternalPrompt] = useState<string | null>(null);
 
@@ -141,8 +147,11 @@ export default function IDEPage() {
   }[] = [
     { id: "files", label: "Files", icon: FolderTree },
     { id: "editor", label: "Editor", icon: FileCode },
-    { id: "preview", label: "Preview", icon: Play },
     { id: "chat", label: "AI", icon: MessageSquare },
+    { id: "memory", label: "Brain", icon: Brain },
+    { id: "retro", label: "Learn", icon: RefreshCw },
+    { id: "architect", label: "Spec", icon: Hammer },
+    { id: "preview", label: "Preview", icon: Play },
     { id: "suggestions", label: "Ideas", icon: Lightbulb },
   ];
 
@@ -213,6 +222,15 @@ export default function IDEPage() {
               onExecuteSuggestion={handleExecuteSuggestion}
             />
           )}
+          {mobileTab === "memory" && (
+            <MemoryPanel projectId={activeProjectId} />
+          )}
+          {mobileTab === "retro" && (
+            <RetrospectivePanel projectId={activeProjectId} />
+          )}
+          {mobileTab === "architect" && (
+            <ArchitectPanel projectId={activeProjectId} />
+          )}
         </div>
 
         {/* Mobile bottom tab bar */}
@@ -263,6 +281,12 @@ export default function IDEPage() {
         onTogglePreview={() => setShowPreview(!showPreview)}
         showSuggestions={showSuggestions}
         onToggleSuggestions={() => setShowSuggestions(!showSuggestions)}
+        showMemory={showMemory}
+        onToggleMemory={() => setShowMemory(!showMemory)}
+        showRetro={showRetro}
+        onToggleRetro={() => setShowRetro(!showRetro)}
+        showArchitect={showArchitect}
+        onToggleArchitect={() => setShowArchitect(!showArchitect)}
         githubConnected={githubSettings?.connected || false}
         isMobile={false}
       />
@@ -351,7 +375,7 @@ export default function IDEPage() {
           {showChat && (
             <>
               <ResizableHandle withHandle />
-              <ResizablePanel defaultSize={30} minSize={20} maxSize={50}>
+              <ResizablePanel defaultSize={showMemory || showRetro ? 22 : 30} minSize={18} maxSize={50}>
                 <ChatPanel
                   session={activeSession}
                   messages={sessionMessages || []}
@@ -360,6 +384,32 @@ export default function IDEPage() {
                   externalPrompt={externalPrompt}
                   onExternalPromptConsumed={() => setExternalPrompt(null)}
                 />
+              </ResizablePanel>
+            </>
+          )}
+
+          {/* Intelligence Panels (Memory / Retro / Architect) */}
+          {(showMemory || showRetro || showArchitect) && (
+            <>
+              <ResizableHandle withHandle />
+              <ResizablePanel defaultSize={18} minSize={14} maxSize={30}>
+                {(() => {
+                  const panels = [
+                    showArchitect && <ArchitectPanel key="arch" projectId={activeProjectId} />,
+                    showMemory && <MemoryPanel key="mem" projectId={activeProjectId} />,
+                    showRetro && <RetrospectivePanel key="retro" projectId={activeProjectId} />,
+                  ].filter(Boolean);
+
+                  if (panels.length === 1) return panels[0];
+
+                  return (
+                    <ResizablePanelGroup direction="vertical">
+                      {panels.map((panel, i) => (
+                        <>{i > 0 && <ResizableHandle withHandle />}<ResizablePanel key={i} defaultSize={Math.floor(100 / panels.length)}>{panel}</ResizablePanel></>
+                      ))}
+                    </ResizablePanelGroup>
+                  );
+                })()}
               </ResizablePanel>
             </>
           )}

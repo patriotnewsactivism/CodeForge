@@ -11,6 +11,9 @@ import { api } from "./_generated/api";
 
 declare const process: { env: Record<string, string | undefined> };
 
+// Type helper for Convex strict mode
+type AgentRunRecord = { _id: string; status: string; role: string; title: string; filesCreated?: number; filesModified?: number; cost?: number; parentAgentId?: string; projectId: string; description: string; model: string; depth: number };
+
 // ─── Model Configuration ────────────────────────────────────────
 const MODELS = [
   {
@@ -339,7 +342,7 @@ export const launchMission = action({
     sessionId: v.id("sessions"),
     prompt: v.string(),
   },
-  handler: async (ctx, { projectId, sessionId, prompt }) => {
+  handler: async (ctx, { projectId, sessionId, prompt }): Promise<{ missionId: string; orchestratorId: string }> => {
     // Get the session to find the userId
     const session = await ctx.runQuery(api.sessions.get, { sessionId });
     if (!session) throw new Error("Session not found");
@@ -647,7 +650,7 @@ export const runAgent = action({
   ) => {
     // Fetch this agent's details
     const agents = await ctx.runQuery(api.swarm.listAgentRuns, { missionId });
-    const agent = agents.find((a) => a._id === agentRunId);
+    const agent = agents.find((a: { _id: string }) => a._id === agentRunId);
     if (!agent) return null;
 
     const roleInfo = AGENT_ROLES[agent.role] || AGENT_ROLES.coder;
@@ -680,7 +683,19 @@ export const runAgent = action({
         )
         .join("\n\n");
 
-      // Build role-specific prompt
+      // 🧠 MEMORY INJECTION — Pull relevant learnings for this agent
+      let memoryContext = "";
+      try {
+        memoryContext = await ctx.runAction(api.memory.buildPromptContext, {
+          projectId,
+          agentRole: agent.role,
+          taskDescription: agent.description,
+        });
+      } catch (e) {
+        console.error("Memory injection failed (non-fatal):", e);
+      }
+
+      // Build role-specific prompt (with memory injected)
       const systemPrompt = buildAgentPrompt(
         agent.role,
         agent.title,
@@ -688,7 +703,8 @@ export const runAgent = action({
         userPrompt,
         fileSummary,
         agent.depth,
-        canSpawnChildren ?? false
+        canSpawnChildren ?? false,
+        memoryContext
       );
 
       // Mark as coding
@@ -753,6 +769,35 @@ export const runAgent = action({
             agentRole: agent.role,
             agentModel: agent.model,
           });
+        }
+      }
+
+      // Check if agent self-refined its approach
+      const refineMatch = result.content.match(
+        /\[REFINE_PROMPT\]([\s\S]*?)\[\/REFINE_PROMPT\]/
+      );
+      if (refineMatch) {
+        try {
+          const refinement = JSON.parse(refineMatch[1]);
+          // Store the refinement for learning
+          await ctx.runMutation(api.architect.storeRefinement, {
+            agentRunId,
+            missionId,
+            originalPrompt: agent.description,
+            refinedPrompt: refinement.adjustment || "",
+            reason: refinement.issue || "Self-refinement",
+          });
+          await ctx.runMutation(api.swarm.logActivity, {
+            missionId,
+            agentRunId,
+            type: "thinking",
+            title: `🔄 ${agent.title} — Self-refined approach`,
+            detail: `Issue: ${refinement.issue}\nAdjustment: ${refinement.adjustment}`,
+            agentRole: agent.role,
+            agentModel: agent.model,
+          });
+        } catch {
+          // Refinement parsing failed, non-critical
         }
       }
 
@@ -862,6 +907,20 @@ export const runAgent = action({
         agentModel: agent.model,
       });
 
+      // 🧠 MEMORY EXTRACTION — Learn from this agent's work
+      try {
+        await ctx.scheduler.runAfter(500, api.memory.extractAndStore, {
+          agentRunId,
+          missionId,
+          projectId,
+          agentRole: agent.role,
+          agentResult: result.content.slice(0, 4000),
+          model: agent.model,
+        });
+      } catch (e) {
+        console.error("Memory extraction scheduling failed (non-fatal):", e);
+      }
+
       // Check if mission is complete (all agents done)
       await ctx.scheduler.runAfter(2000, api.swarm.checkMissionComplete, {
         missionId,
@@ -905,18 +964,18 @@ export const checkMissionComplete = action({
   handler: async (ctx, { missionId, sessionId }) => {
     const agents = await ctx.runQuery(api.swarm.listAgentRuns, { missionId });
     const pending = agents.filter(
-      (a) =>
+      (a: AgentRunRecord) =>
         a.status !== "completed" && a.status !== "failed"
     );
 
     if (pending.length === 0 && agents.length > 0) {
-      const completed = agents.filter((a) => a.status === "completed").length;
-      const failed = agents.filter((a) => a.status === "failed").length;
+      const completed = agents.filter((a: AgentRunRecord) => a.status === "completed").length;
+      const failed = agents.filter((a: AgentRunRecord) => a.status === "failed").length;
       const totalFiles = agents.reduce(
-        (sum, a) => sum + (a.filesCreated || 0),
+        (sum: number, a: AgentRunRecord) => sum + (a.filesCreated || 0),
         0
       );
-      const totalCost = agents.reduce((sum, a) => sum + (a.cost || 0), 0);
+      const totalCost = agents.reduce((sum: number, a: AgentRunRecord) => sum + (a.cost || 0), 0);
 
       await ctx.runMutation(api.swarm.updateMission, {
         missionId,
@@ -929,10 +988,25 @@ export const checkMissionComplete = action({
       // Post completion message
       await ctx.runMutation(api.chatMessages.send, {
         sessionId,
-        content: `🏁 **Mission Complete!**\n\n✅ ${completed} agents finished | ❌ ${failed} failed\n📄 ${totalFiles} files created | 💰 $${totalCost.toFixed(4)} total cost\n\nAll agents: ${agents.map((a) => `${AGENT_ROLES[a.role]?.emoji || "🤖"} ${a.title} (${a.status})`).join(", ")}`,
+        content: `🏁 **Mission Complete!**\n\n✅ ${completed} agents finished | ❌ ${failed} failed\n📄 ${totalFiles} files created | 💰 $${totalCost.toFixed(4)} total cost\n\nAll agents: ${agents.map((a: AgentRunRecord) => `${AGENT_ROLES[a.role]?.emoji || "🤖"} ${a.title} (${a.status})`).join(", ")}\n\n🔄 Running self-improvement analysis...`,
         role: "assistant",
         model: "swarm",
       });
+
+      // 🔄 SELF-IMPROVEMENT — Run retrospective after mission completes
+      try {
+        const mission = await ctx.runQuery(api.swarm.getActiveMission, {
+          projectId: agents[0].projectId,
+        });
+        if (mission) {
+          await ctx.scheduler.runAfter(3000, api.retrospective.runRetrospective, {
+            missionId,
+            projectId: mission.projectId,
+          });
+        }
+      } catch (e) {
+        console.error("Retrospective scheduling failed (non-fatal):", e);
+      }
     }
   },
 });
@@ -954,7 +1028,8 @@ function buildAgentPrompt(
   userPrompt: string,
   fileSummary: string,
   depth: number,
-  canSpawnChildren: boolean
+  canSpawnChildren: boolean,
+  memoryContext?: string
 ): string {
   const roleInfo = AGENT_ROLES[role] || AGENT_ROLES.coder;
 
@@ -972,6 +1047,18 @@ If your task is complex and would benefit from multiple specialists, you can spa
 
 Only spawn if the task genuinely needs it. Max 4 children. Each must work on DIFFERENT files.`;
   }
+
+  // Self-refinement instructions — agents can flag when they discover issues
+  const refineInstructions = `
+
+SELF-REFINEMENT:
+If during your work you discover that your task needs to be approached differently (e.g., an API doesn't exist, a dependency conflict, a better pattern), include this block BEFORE your code output:
+
+[REFINE_PROMPT]
+{"issue": "Brief description of what you discovered", "context": "What you learned that changes the approach", "adjustment": "How you're adapting your work"}
+[/REFINE_PROMPT]
+
+This helps the system learn and improve future missions.`;
 
   return `You are ${roleInfo.emoji} Agent "${title}" in CodeForge's autonomous swarm.
 
@@ -1006,10 +1093,11 @@ RULES:
 4. Be thorough — write the full file, not snippets
 5. Include all imports, types, error handling
 ${spawnInstructions}
+${refineInstructions}
 
 CURRENT PROJECT FILES:
 ${fileSummary || "(empty project — creating from scratch)"}
-
+${memoryContext ? `\n${memoryContext}` : ""}
 Now execute your task. Generate the code.`;
 }
 
