@@ -8,7 +8,6 @@
 import { v } from "convex/values";
 import { action, mutation, query } from "./_generated/server";
 import { api } from "./_generated/api";
-import { extractFiles } from "./fileExtractor";
 
 declare const process: { env: Record<string, string | undefined> };
 
@@ -443,7 +442,7 @@ export const runOrchestrator = action({
       });
 
       // Get project files for context
-      const files = await ctx.runQuery(api.files.listWithContentInternal, {
+      const files = await ctx.runQuery(api.files.listWithContent, {
         projectId,
       });
       const fileList = files
@@ -721,7 +720,7 @@ export const runAgent = action({
       });
 
       // Get project files
-      const files = await ctx.runQuery(api.files.listWithContentInternal, { projectId });
+      const files = await ctx.runQuery(api.files.listWithContent, { projectId });
       const fileSummary = files
         .filter((f: { type: string }) => f.type === "file")
         .slice(0, 30)
@@ -809,16 +808,20 @@ export const runAgent = action({
         costSoFar: result.cost,
       });
 
-      // Parse and create files using robust extractor
+      // Parse and create files
       let filesCreated = 0;
-      const extractedFiles = extractFiles(result.content);
-      for (const file of extractedFiles) {
+      const fileBlockRegex = /```[a-zA-Z]*:([^\n]+)\n([\s\S]*?)```/g;
+      let match;
+      while ((match = fileBlockRegex.exec(result.content)) !== null) {
+        const filePath = match[1].trim();
+        const fileContent = match[2];
+        const fileName = filePath.split("/").pop() || filePath;
         try {
           await ctx.runMutation(api.files.createFromAI, {
             projectId,
-            path: file.path,
-            name: file.name,
-            content: file.content,
+            path: filePath,
+            name: fileName,
+            content: fileContent,
           });
           filesCreated++;
 
@@ -827,9 +830,9 @@ export const runAgent = action({
             missionId,
             agentRunId,
             type: "file_create",
-            title: `📄 Created ${file.path}`,
-            detail: file.content.slice(0, 200) + (file.content.length > 200 ? "..." : ""),
-            filePath: file.path,
+            title: `📄 Created ${filePath}`,
+            detail: fileContent.slice(0, 200) + (fileContent.length > 200 ? "..." : ""),
+            filePath,
             agentRole: agent.role,
             agentModel: agent.model,
           });
@@ -838,9 +841,9 @@ export const runAgent = action({
             missionId,
             agentRunId,
             type: "error",
-            title: `⚠️ Failed to create ${file.path}`,
+            title: `⚠️ Failed to create ${filePath}`,
             detail: e instanceof Error ? e.message : String(e),
-            filePath: file.path,
+            filePath,
             agentRole: agent.role,
             agentModel: agent.model,
           });
@@ -1075,7 +1078,7 @@ export const checkMissionComplete = action({
         const activeBranch = branches.find((b: { status: string }) => b.status === "active");
         if (activeBranch) {
           // Get all files created/modified
-          const allFiles = await ctx.runQuery(api.files.listWithContentInternal, { projectId });
+          const allFiles = await ctx.runQuery(api.files.listWithContent, { projectId });
           const changedFiles = allFiles
             .filter((f: { type: string; content?: string | null; isModified?: boolean }) =>
               f.type === "file" && f.content)

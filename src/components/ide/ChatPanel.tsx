@@ -155,7 +155,6 @@ export function ChatPanel({
   projectId,
   externalPrompt,
   onExternalPromptConsumed,
-  onProjectCreated,
 }: {
   session: Session | null | undefined;
   messages: Message[];
@@ -163,7 +162,6 @@ export function ChatPanel({
   projectId?: string | null;
   externalPrompt?: string | null;
   onExternalPromptConsumed?: () => void;
-  onProjectCreated?: (id: string) => void;
 }) {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -289,10 +287,6 @@ export function ChatPanel({
           toast.success(
             `Created ${result.filesCreated} file${result.filesCreated > 1 ? "s" : ""} in your project`
           );
-        }
-        // If a project was auto-created, switch to it
-        if (result.projectId && !projectId && onProjectCreated) {
-          onProjectCreated(result.projectId);
         }
       }
     } catch (e) {

@@ -310,7 +310,7 @@ export const importRepo = action({
         }));
 
       if (folderFiles.length > 0) {
-        await ctx.runMutation(api.files.bulkInsertInternal, {
+        await ctx.runMutation(api.files.bulkInsert, {
           projectId,
           files: folderFiles,
         });
@@ -357,7 +357,7 @@ export const importRepo = action({
           (f): f is NonNullable<typeof f> => f !== null
         );
         if (validFiles.length > 0) {
-          await ctx.runMutation(api.files.bulkInsertInternal, {
+          await ctx.runMutation(api.files.bulkInsert, {
             projectId,
             files: validFiles,
           });

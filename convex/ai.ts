@@ -1,7 +1,6 @@
 import { v } from "convex/values";
 import { action } from "./_generated/server";
 import { api } from "./_generated/api";
-import { extractFiles } from "./fileExtractor";
 
 declare const process: { env: Record<string, string | undefined> };
 
@@ -163,9 +162,16 @@ export const chat = action({
     outputTokens: v.number(),
     cost: v.number(),
     filesCreated: v.number(),
-    projectId: v.optional(v.string()),
   }),
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<{
+    content: string;
+    model: string;
+    inputTokens: number;
+    outputTokens: number;
+    cost: number;
+    filesCreated: number;
+    projectId?: string;
+  }> => {
     const systemPrompt = `You are CodeForge AI — the built-in AI engine of CodeForge, a full-stack coding platform. You are NOT a generic chatbot. You are embedded inside a real development environment with file management, live preview, and GitHub integration.
 
 Your capabilities inside CodeForge:
@@ -265,32 +271,23 @@ Always use the \`lang:path\` format for ANY code you generate. This automaticall
 
         // Parse code blocks and create files in the project
         let filesCreated = 0;
-        let projectId = args.projectId;
-
-        // Auto-create a project if the user doesn't have one yet
-        if (!projectId) {
-          try {
-            projectId = await ctx.runMutation(api.projects.autoCreate, {
-              sessionId: args.sessionId,
-            });
-          } catch (e) {
-            console.error("Auto-create project failed:", e);
-          }
-        }
-
-        if (projectId) {
-          const extracted = extractFiles(result.content);
-          for (const file of extracted) {
+        if (args.projectId) {
+          const fileBlockRegex = /```[a-zA-Z]*:([^\n]+)\n([\s\S]*?)```/g;
+          let match;
+          while ((match = fileBlockRegex.exec(result.content)) !== null) {
+            const filePath = match[1].trim();
+            const fileContent = match[2];
+            const fileName = filePath.split("/").pop() || filePath;
             try {
               await ctx.runMutation(api.files.createFromAI, {
-                projectId,
-                path: file.path,
-                name: file.name,
-                content: file.content,
+                projectId: args.projectId,
+                path: filePath,
+                name: fileName,
+                content: fileContent,
               });
               filesCreated++;
             } catch (e) {
-              console.error(`Failed to create file ${file.path}:`, e);
+              console.error(`Failed to create file ${filePath}:`, e);
             }
           }
         }
@@ -302,7 +299,6 @@ Always use the \`lang:path\` format for ANY code you generate. This automaticall
           outputTokens: result.outputTokens,
           cost,
           filesCreated,
-          projectId: projectId || undefined,
         };
       } catch (e) {
         lastError = e instanceof Error ? e.message : String(e);
@@ -326,7 +322,6 @@ Always use the \`lang:path\` format for ANY code you generate. This automaticall
       outputTokens: 0,
       cost: 0,
       filesCreated: 0,
-      projectId: undefined,
     };
   },
 });
