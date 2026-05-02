@@ -235,6 +235,7 @@ export default function IDEPage() {
               projectId={activeProjectId}
               externalPrompt={externalPrompt}
               onExternalPromptConsumed={() => setExternalPrompt(null)}
+              onProjectCreated={(id) => setActiveProjectId(id as any)}
             />
           )}
           {mobileTab === "suggestions" && (
@@ -439,6 +440,7 @@ export default function IDEPage() {
                   projectId={activeProjectId}
                   externalPrompt={externalPrompt}
                   onExternalPromptConsumed={() => setExternalPrompt(null)}
+              onProjectCreated={(id) => setActiveProjectId(id as any)}
                 />
               </ResizablePanel>
             </>
