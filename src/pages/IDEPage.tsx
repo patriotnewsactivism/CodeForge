@@ -1,3 +1,15 @@
+/**
+ * ═══════════════════════════════════════════════════════════════════
+ * CODEFORGE v2 — IDE PAGE
+ * ═══════════════════════════════════════════════════════════════════
+ *
+ * Main IDE layout. Three panels:
+ *  Left:   File Tree
+ *  Center: Code Editor
+ *  Right:  Chat + Agent Activity (tabbed)
+ *
+ * Mobile: Bottom tab navigation between panels.
+ */
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
@@ -10,25 +22,26 @@ import { TopBar } from "@/components/ide/TopBar";
 import { CostBar } from "@/components/ide/CostBar";
 import { WelcomePanel } from "@/components/ide/WelcomePanel";
 import { SuggestionsPanel } from "@/components/ide/SuggestionsPanel";
-import { MemoryPanel } from "@/components/ide/MemoryPanel";
-import { RetrospectivePanel } from "@/components/ide/RetrospectivePanel";
-import { ArchitectPanel } from "@/components/ide/ArchitectPanel";
-import { StreamingPanel } from "@/components/ide/StreamingPanel";
-import { RAGPanel } from "@/components/ide/RAGPanel";
+import { AgentActivityPanel } from "@/components/ide/AgentActivityPanel";
 import { GitPanel } from "@/components/ide/GitPanel";
-import { DeployPanel } from "@/components/ide/DeployPanel";
-import { SwarmVisualizer } from "@/components/ide/SwarmVisualizer";
-import { AnalyticsPanel } from "@/components/ide/AnalyticsPanel";
-import { DiffPanel } from "@/components/ide/DiffPanel";
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
 import { cn } from "@/lib/utils";
-import { FolderTree, FileCode, Play, MessageSquare, Lightbulb, Brain, RefreshCw, Hammer, Radio, Search, GitBranch, Rocket, Network, BarChart3, Diff } from "lucide-react";
+import {
+  FolderTree,
+  FileCode,
+  Play,
+  MessageSquare,
+  Lightbulb,
+  Activity,
+  GitBranch,
+} from "lucide-react";
 
-type MobileTab = "files" | "editor" | "preview" | "chat" | "suggestions" | "memory" | "retro" | "architect" | "stream" | "search" | "git" | "deploy" | "swarm" | "analytics" | "diffs";
+// ─── Types ──────────────────────────────────────────────────────
+type MobileTab = "files" | "editor" | "preview" | "chat" | "agents" | "suggestions" | "git";
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false);
@@ -41,34 +54,31 @@ function useIsMobile() {
   return isMobile;
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// MAIN COMPONENT
+// ═══════════════════════════════════════════════════════════════════
 export default function IDEPage() {
   const isMobile = useIsMobile();
+
+  // ─── Data ───────────────────────────────────────────────────────
   const projects = useQuery(api.projects.list) || [];
   const activeSession = useQuery(api.sessions.getActive);
   const githubSettings = useQuery(api.github.getSettings);
 
-  const [activeProjectId, setActiveProjectId] =
-    useState<Id<"projects"> | null>(null);
+  // ─── State ──────────────────────────────────────────────────────
+  const [activeProjectId, setActiveProjectId] = useState<Id<"projects"> | null>(null);
   const [activeFileId, setActiveFileId] = useState<Id<"files"> | null>(null);
-  const [openTabs, setOpenTabs] = useState<
-    Array<{ id: Id<"files">; name: string; path: string }>
-  >([]);
+  const [openTabs, setOpenTabs] = useState<Array<{ id: Id<"files">; name: string; path: string }>>([]);
   const [showChat, setShowChat] = useState(true);
   const [showPreview, setShowPreview] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [showMemory, setShowMemory] = useState(false);
-  const [showRetro, setShowRetro] = useState(false);
-  const [showArchitect, setShowArchitect] = useState(false);
-  const [showStream, setShowStream] = useState(false);
-  const [showSearch, setShowSearch] = useState(false);
+  const [showAgents, setShowAgents] = useState(false);
   const [showGit, setShowGit] = useState(false);
-  const [showDeploy, setShowDeploy] = useState(false);
-  const [showSwarm, setShowSwarm] = useState(false);
-  const [showAnalytics, setShowAnalytics] = useState(false);
-  const [showDiffs, setShowDiffs] = useState(false);
   const [mobileTab, setMobileTab] = useState<MobileTab>("chat");
   const [externalPrompt, setExternalPrompt] = useState<string | null>(null);
+  const [activeMissionId, setActiveMissionId] = useState<Id<"missions"> | null>(null);
 
+  // ─── Queries ────────────────────────────────────────────────────
   const activeProject = useQuery(
     api.projects.get,
     activeProjectId ? { projectId: activeProjectId } : "skip"
@@ -85,11 +95,17 @@ export default function IDEPage() {
     api.chatMessages.listBySession,
     activeSession ? { sessionId: activeSession._id } : "skip"
   );
+  const allFilesForPreview = useQuery(
+    api.files.listWithContent,
+    activeProjectId ? { projectId: activeProjectId } : "skip"
+  );
 
+  // ─── Mutations ──────────────────────────────────────────────────
   const createSession = useMutation(api.sessions.create);
   const createProject = useMutation(api.projects.create);
   const updateFileContent = useMutation(api.files.updateContent);
 
+  // ─── Effects ────────────────────────────────────────────────────
   // Auto-select first project
   useEffect(() => {
     if (projects.length > 0 && !activeProjectId) {
@@ -97,7 +113,7 @@ export default function IDEPage() {
     }
   }, [projects, activeProjectId]);
 
-  // Ensure there's always an active session
+  // Auto-create session
   useEffect(() => {
     if (activeSession === null) {
       createSession({
@@ -108,6 +124,7 @@ export default function IDEPage() {
     }
   }, [activeSession, activeProjectId, createSession]);
 
+  // ─── Handlers ─────────────────────────────────────────────────
   const handleFileSelect = useCallback(
     (fileId: Id<"files">, name: string, path: string) => {
       setActiveFileId(fileId);
@@ -115,9 +132,7 @@ export default function IDEPage() {
         if (prev.find((t) => t.id === fileId)) return prev;
         return [...prev, { id: fileId, name, path }];
       });
-      if (window.innerWidth < 768) {
-        setMobileTab("editor");
-      }
+      if (window.innerWidth < 768) setMobileTab("editor");
     },
     []
   );
@@ -125,9 +140,7 @@ export default function IDEPage() {
   const handleCloseTab = useCallback(
     (fileId: Id<"files">) => {
       setOpenTabs((prev) => prev.filter((t) => t.id !== fileId));
-      if (activeFileId === fileId) {
-        setActiveFileId(null);
-      }
+      if (activeFileId === fileId) setActiveFileId(null);
     },
     [activeFileId]
   );
@@ -142,44 +155,34 @@ export default function IDEPage() {
 
   const handleExecuteSuggestion = useCallback((prompt: string) => {
     setExternalPrompt(prompt);
-    // Switch to chat on mobile
-    if (window.innerWidth < 768) {
-      setMobileTab("chat");
-    }
+    if (window.innerWidth < 768) setMobileTab("chat");
   }, []);
 
-  // Get full file contents for preview
-  const allFilesForPreview = useQuery(
-    api.files.listWithContent,
-    activeProjectId ? { projectId: activeProjectId } : "skip"
-  );
+  const handleMissionStarted = useCallback((missionId: string) => {
+    setActiveMissionId(missionId as Id<"missions">);
+    setShowAgents(true);
+    if (window.innerWidth < 768) setMobileTab("agents");
+  }, []);
 
-  const MOBILE_TABS: {
-    id: MobileTab;
-    label: string;
-    icon: typeof FolderTree;
-  }[] = [
+  const handleCreateProject = useCallback(() => {
+    createProject({ name: "New Project" }).then((id) => setActiveProjectId(id));
+  }, [createProject]);
+
+  // ─── Mobile Tabs ──────────────────────────────────────────────
+  const MOBILE_TABS: { id: MobileTab; label: string; icon: typeof FolderTree }[] = [
     { id: "files", label: "Files", icon: FolderTree },
-    { id: "editor", label: "Editor", icon: FileCode },
+    { id: "editor", label: "Code", icon: FileCode },
     { id: "chat", label: "AI", icon: MessageSquare },
-    { id: "memory", label: "Brain", icon: Brain },
-    { id: "retro", label: "Learn", icon: RefreshCw },
-    { id: "architect", label: "Spec", icon: Hammer },
-    { id: "stream", label: "Live", icon: Radio },
-    { id: "search", label: "Code", icon: Search },
-    { id: "git", label: "Git", icon: GitBranch },
-    { id: "deploy", label: "Ship", icon: Rocket },
-    { id: "swarm", label: "Swarm", icon: Network },
-    { id: "diffs", label: "Diffs", icon: Diff },
-    { id: "analytics", label: "Stats", icon: BarChart3 },
+    { id: "agents", label: "Agents", icon: Activity },
     { id: "preview", label: "Preview", icon: Play },
     { id: "suggestions", label: "Ideas", icon: Lightbulb },
+    { id: "git", label: "Git", icon: GitBranch },
   ];
 
-  // ─── MOBILE LAYOUT ────────────────────────────────────────────────
+  // ─── MOBILE LAYOUT ───────────────────────────────────────────
   if (isMobile) {
     return (
-      <div className="flex h-[100dvh] flex-col bg-background text-foreground overflow-hidden">
+      <div className="flex h-[100dvh] flex-col bg-[#0a0a0f] text-white overflow-hidden">
         <TopBar
           projects={projects}
           activeProjectId={activeProjectId}
@@ -191,7 +194,6 @@ export default function IDEPage() {
           isMobile={true}
         />
 
-        {/* Main content area — full screen, swappable */}
         <div className="flex-1 overflow-hidden">
           {mobileTab === "files" && (
             <FileTree
@@ -202,27 +204,21 @@ export default function IDEPage() {
             />
           )}
           {mobileTab === "editor" && (
-            <>
-              {activeFileId && activeFileContent ? (
-                <CodeEditor
-                  file={activeFileContent}
-                  openTabs={openTabs}
-                  activeFileId={activeFileId}
-                  onSelectTab={setActiveFileId}
-                  onCloseTab={handleCloseTab}
-                  onSave={handleSaveFile}
-                />
-              ) : (
-                <WelcomePanel
-                  projectCount={projects.length}
-                  onCreateProject={() => {
-                    createProject({ name: "New Project" }).then((id) =>
-                      setActiveProjectId(id)
-                    );
-                  }}
-                />
-              )}
-            </>
+            activeFileId && activeFileContent ? (
+              <CodeEditor
+                file={activeFileContent}
+                openTabs={openTabs}
+                activeFileId={activeFileId}
+                onSelectTab={setActiveFileId}
+                onCloseTab={handleCloseTab}
+                onSave={handleSaveFile}
+              />
+            ) : (
+              <WelcomePanel
+                projectCount={projects.length}
+                onCreateProject={handleCreateProject}
+              />
+            )
           )}
           {mobileTab === "preview" && (
             <PreviewPanel files={allFilesForPreview || []} />
@@ -235,6 +231,13 @@ export default function IDEPage() {
               projectId={activeProjectId}
               externalPrompt={externalPrompt}
               onExternalPromptConsumed={() => setExternalPrompt(null)}
+              onMissionStarted={handleMissionStarted}
+            />
+          )}
+          {mobileTab === "agents" && (
+            <AgentActivityPanel
+              missionId={activeMissionId}
+              projectId={activeProjectId}
             />
           )}
           {mobileTab === "suggestions" && (
@@ -243,65 +246,24 @@ export default function IDEPage() {
               onExecuteSuggestion={handleExecuteSuggestion}
             />
           )}
-          {mobileTab === "memory" && (
-            <MemoryPanel projectId={activeProjectId} />
-          )}
-          {mobileTab === "retro" && (
-            <RetrospectivePanel projectId={activeProjectId} />
-          )}
-          {mobileTab === "architect" && (
-            <ArchitectPanel projectId={activeProjectId} />
-          )}
-          {mobileTab === "stream" && (
-            <StreamingPanel projectId={activeProjectId} />
-          )}
-          {mobileTab === "search" && (
-            <RAGPanel projectId={activeProjectId} />
-          )}
           {mobileTab === "git" && (
             <GitPanel projectId={activeProjectId} />
           )}
-          {mobileTab === "deploy" && (
-            <DeployPanel projectId={activeProjectId} />
-          )}
-          {mobileTab === "swarm" && (
-            <SwarmVisualizer projectId={activeProjectId} />
-          )}
-          {mobileTab === "diffs" && (
-            <DiffPanel projectId={activeProjectId} />
-          )}
-          {mobileTab === "analytics" && (
-            <AnalyticsPanel projectId={activeProjectId} />
-          )}
         </div>
 
-        {/* Mobile bottom tab bar — horizontally scrollable */}
-        <div className="flex items-center border-t border-border bg-card overflow-x-auto scrollbar-none">
+        {/* Mobile bottom tabs */}
+        <div className="flex items-center border-t border-white/5 bg-[#0a0a0f] overflow-x-auto scrollbar-none">
           {MOBILE_TABS.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setMobileTab(tab.id)}
               className={cn(
                 "flex-none min-w-[3.5rem] flex flex-col items-center gap-0.5 py-2 px-1.5 transition-colors",
-                mobileTab === tab.id
-                  ? "text-chart-3"
-                  : "text-muted-foreground"
+                mobileTab === tab.id ? "text-emerald-400" : "text-white/30"
               )}
             >
-              <tab.icon
-                className={cn(
-                  "h-5 w-5",
-                  mobileTab === tab.id && "text-chart-3"
-                )}
-              />
+              <tab.icon className={cn("h-5 w-5", mobileTab === tab.id && "text-emerald-400")} />
               <span className="text-[10px] font-medium">{tab.label}</span>
-              {tab.id === "chat" &&
-              activeSession?.totalCost &&
-              activeSession.totalCost > 0 ? (
-                <span className="text-[8px] text-chart-2">
-                  ${activeSession.totalCost.toFixed(4)}
-                </span>
-              ) : null}
             </button>
           ))}
         </div>
@@ -309,9 +271,9 @@ export default function IDEPage() {
     );
   }
 
-  // ─── DESKTOP LAYOUT ───────────────────────────────────────────────
+  // ─── DESKTOP LAYOUT ───────────────────────────────────────────
   return (
-    <div className="flex h-screen flex-col bg-background text-foreground overflow-hidden">
+    <div className="flex h-screen flex-col bg-[#0a0a0f] text-white overflow-hidden">
       <TopBar
         projects={projects}
         activeProjectId={activeProjectId}
@@ -323,26 +285,10 @@ export default function IDEPage() {
         onTogglePreview={() => setShowPreview(!showPreview)}
         showSuggestions={showSuggestions}
         onToggleSuggestions={() => setShowSuggestions(!showSuggestions)}
-        showMemory={showMemory}
-        onToggleMemory={() => setShowMemory(!showMemory)}
-        showRetro={showRetro}
-        onToggleRetro={() => setShowRetro(!showRetro)}
-        showArchitect={showArchitect}
-        onToggleArchitect={() => setShowArchitect(!showArchitect)}
-        showStream={showStream}
-        onToggleStream={() => setShowStream(!showStream)}
-        showSearch={showSearch}
-        onToggleSearch={() => setShowSearch(!showSearch)}
+        showAgents={showAgents}
+        onToggleAgents={() => setShowAgents(!showAgents)}
         showGit={showGit}
         onToggleGit={() => setShowGit(!showGit)}
-        showDeploy={showDeploy}
-        onToggleDeploy={() => setShowDeploy(!showDeploy)}
-        showSwarm={showSwarm}
-        onToggleSwarm={() => setShowSwarm(!showSwarm)}
-        showAnalytics={showAnalytics}
-        onToggleAnalytics={() => setShowAnalytics(!showAnalytics)}
-        showDiffs={showDiffs}
-        onToggleDiffs={() => setShowDiffs(!showDiffs)}
         githubConnected={githubSettings?.connected || false}
         isMobile={false}
       />
@@ -350,7 +296,7 @@ export default function IDEPage() {
       <div className="flex-1 overflow-hidden">
         <ResizablePanelGroup direction="horizontal">
           {/* File Tree */}
-          <ResizablePanel defaultSize={18} minSize={12} maxSize={30}>
+          <ResizablePanel defaultSize={16} minSize={12} maxSize={25}>
             <FileTree
               files={files || []}
               activeFileId={activeFileId}
@@ -361,13 +307,11 @@ export default function IDEPage() {
 
           <ResizableHandle withHandle />
 
-          {/* Editor + Preview */}
-          <ResizablePanel
-            defaultSize={showChat ? (showSuggestions ? 37 : 52) : 82}
-          >
+          {/* Editor (+ optional Preview below) */}
+          <ResizablePanel defaultSize={showChat ? 44 : 64}>
             {showPreview ? (
               <ResizablePanelGroup direction="vertical">
-                <ResizablePanel defaultSize={50}>
+                <ResizablePanel defaultSize={55}>
                   {activeFileId && activeFileContent ? (
                     <CodeEditor
                       file={activeFileContent}
@@ -380,16 +324,12 @@ export default function IDEPage() {
                   ) : (
                     <WelcomePanel
                       projectCount={projects.length}
-                      onCreateProject={() => {
-                        createProject({ name: "New Project" }).then((id) =>
-                          setActiveProjectId(id)
-                        );
-                      }}
+                      onCreateProject={handleCreateProject}
                     />
                   )}
                 </ResizablePanel>
                 <ResizableHandle withHandle />
-                <ResizablePanel defaultSize={50}>
+                <ResizablePanel defaultSize={45}>
                   <PreviewPanel files={allFilesForPreview || []} />
                 </ResizablePanel>
               </ResizablePanelGroup>
@@ -405,20 +345,16 @@ export default function IDEPage() {
             ) : (
               <WelcomePanel
                 projectCount={projects.length}
-                onCreateProject={() => {
-                  createProject({ name: "New Project" }).then((id) =>
-                    setActiveProjectId(id)
-                  );
-                }}
+                onCreateProject={handleCreateProject}
               />
             )}
           </ResizablePanel>
 
-          {/* Suggestions Panel */}
+          {/* Suggestions panel */}
           {showSuggestions && (
             <>
               <ResizableHandle withHandle />
-              <ResizablePanel defaultSize={15} minSize={12} maxSize={25}>
+              <ResizablePanel defaultSize={14} minSize={10} maxSize={22}>
                 <SuggestionsPanel
                   projectId={activeProjectId}
                   onExecuteSuggestion={handleExecuteSuggestion}
@@ -427,11 +363,11 @@ export default function IDEPage() {
             </>
           )}
 
-          {/* Chat Panel */}
+          {/* Chat panel */}
           {showChat && (
             <>
               <ResizableHandle withHandle />
-              <ResizablePanel defaultSize={showMemory || showRetro ? 22 : 30} minSize={18} maxSize={50}>
+              <ResizablePanel defaultSize={showAgents ? 20 : 26} minSize={16} maxSize={40}>
                 <ChatPanel
                   session={activeSession}
                   messages={sessionMessages || []}
@@ -439,40 +375,38 @@ export default function IDEPage() {
                   projectId={activeProjectId}
                   externalPrompt={externalPrompt}
                   onExternalPromptConsumed={() => setExternalPrompt(null)}
+                  onMissionStarted={handleMissionStarted}
                 />
               </ResizablePanel>
             </>
           )}
 
-          {/* Intelligence Panels (Memory / Retro / Architect) */}
-          {(showMemory || showRetro || showArchitect || showStream || showSearch || showGit || showDeploy || showSwarm || showAnalytics || showDiffs) && (
+          {/* Agent Activity / Git panel */}
+          {(showAgents || showGit) && (
             <>
               <ResizableHandle withHandle />
               <ResizablePanel defaultSize={18} minSize={14} maxSize={30}>
-                {(() => {
-                  const panels = [
-                    showArchitect && <ArchitectPanel key="arch" projectId={activeProjectId} />,
-                    showMemory && <MemoryPanel key="mem" projectId={activeProjectId} />,
-                    showRetro && <RetrospectivePanel key="retro" projectId={activeProjectId} />,
-                    showStream && <StreamingPanel key="stream" projectId={activeProjectId} />,
-                    showSearch && <RAGPanel key="search" projectId={activeProjectId} />,
-                    showGit && <GitPanel key="git" projectId={activeProjectId} />,
-                    showDeploy && <DeployPanel key="deploy" projectId={activeProjectId} />,
-                    showSwarm && <SwarmVisualizer key="swarm" projectId={activeProjectId} />,
-                    showDiffs && <DiffPanel key="diffs" projectId={activeProjectId} />,
-                    showAnalytics && <AnalyticsPanel key="analytics" projectId={activeProjectId} />,
-                  ].filter(Boolean);
-
-                  if (panels.length === 1) return panels[0];
-
-                  return (
-                    <ResizablePanelGroup direction="vertical">
-                      {panels.map((panel, i) => (
-                        <>{i > 0 && <ResizableHandle withHandle />}<ResizablePanel key={i} defaultSize={Math.floor(100 / panels.length)}>{panel}</ResizablePanel></>
-                      ))}
-                    </ResizablePanelGroup>
-                  );
-                })()}
+                {showAgents && showGit ? (
+                  <ResizablePanelGroup direction="vertical">
+                    <ResizablePanel defaultSize={60}>
+                      <AgentActivityPanel
+                        missionId={activeMissionId}
+                        projectId={activeProjectId}
+                      />
+                    </ResizablePanel>
+                    <ResizableHandle withHandle />
+                    <ResizablePanel defaultSize={40}>
+                      <GitPanel projectId={activeProjectId} />
+                    </ResizablePanel>
+                  </ResizablePanelGroup>
+                ) : showAgents ? (
+                  <AgentActivityPanel
+                    missionId={activeMissionId}
+                    projectId={activeProjectId}
+                  />
+                ) : (
+                  <GitPanel projectId={activeProjectId} />
+                )}
               </ResizablePanel>
             </>
           )}

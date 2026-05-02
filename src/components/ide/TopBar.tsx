@@ -1,3 +1,13 @@
+/**
+ * ═══════════════════════════════════════════════════════════════════
+ * CODEFORGE v2 — TOP BAR
+ * ═══════════════════════════════════════════════════════════════════
+ *
+ * Clean navigation bar with:
+ *  - Logo + project selector
+ *  - Panel toggle buttons (Chat, Preview, Suggestions, Agents, Git)
+ *  - GitHub + Settings
+ */
 import type { Id } from "../../../convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,27 +30,20 @@ import { useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import {
-  Brain,
   Code2,
-  Hammer,
   FolderGit2,
   Github,
   Lightbulb,
   MessageSquare,
   Plus,
-  RefreshCw,
   Settings,
   LogOut,
   Play,
   Menu,
-  Radio,
-  Search,
   GitBranch,
-  Rocket,
-  Network,
-  BarChart3,
-  Diff,
+  Activity,
 } from "lucide-react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { GitHubConnectDialog } from "./GitHubConnectDialog";
@@ -72,26 +75,10 @@ interface TopBarProps {
   onTogglePreview?: () => void;
   showSuggestions?: boolean;
   onToggleSuggestions?: () => void;
-  showMemory?: boolean;
-  onToggleMemory?: () => void;
-  showRetro?: boolean;
-  onToggleRetro?: () => void;
-  showArchitect?: boolean;
-  onToggleArchitect?: () => void;
-  showStream?: boolean;
-  onToggleStream?: () => void;
-  showSearch?: boolean;
-  onToggleSearch?: () => void;
+  showAgents?: boolean;
+  onToggleAgents?: () => void;
   showGit?: boolean;
   onToggleGit?: () => void;
-  showDeploy?: boolean;
-  onToggleDeploy?: () => void;
-  showSwarm?: boolean;
-  onToggleSwarm?: () => void;
-  showAnalytics?: boolean;
-  onToggleAnalytics?: () => void;
-  showDiffs?: boolean;
-  onToggleDiffs?: () => void;
   githubConnected: boolean;
   isMobile?: boolean;
 }
@@ -107,26 +94,10 @@ export function TopBar({
   onTogglePreview,
   showSuggestions,
   onToggleSuggestions,
-  showMemory,
-  onToggleMemory,
-  showRetro,
-  onToggleRetro,
-  showArchitect,
-  onToggleArchitect,
-  showStream,
-  onToggleStream,
-  showSearch,
-  onToggleSearch,
+  showAgents,
+  onToggleAgents,
   showGit,
   onToggleGit,
-  showDeploy,
-  onToggleDeploy,
-  showSwarm,
-  onToggleSwarm,
-  showAnalytics,
-  onToggleAnalytics,
-  showDiffs,
-  onToggleDiffs,
   githubConnected,
   isMobile = false,
 }: TopBarProps) {
@@ -150,22 +121,51 @@ export function TopBar({
     }
   };
 
+  // Toggle button helper
+  const ToggleBtn = ({
+    active,
+    onClick,
+    icon: Icon,
+    label,
+  }: {
+    active?: boolean;
+    onClick?: () => void;
+    icon: typeof Play;
+    label: string;
+  }) => {
+    if (!onClick) return null;
+    return (
+      <Button
+        variant={active ? "secondary" : "ghost"}
+        size="sm"
+        className={cn(
+          "h-7 text-xs gap-1.5 transition-colors",
+          active
+            ? "bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/15"
+            : "text-white/40 hover:text-white/60 hover:bg-white/5"
+        )}
+        onClick={onClick}
+      >
+        <Icon className="h-3.5 w-3.5" />
+        {label}
+      </Button>
+    );
+  };
+
   // ─── MOBILE TOPBAR ──────────────────────────────────────────────
   if (isMobile) {
     return (
-      <div className="flex items-center gap-2 border-b border-border bg-card px-3 py-2 min-h-[44px]">
-        {/* Logo */}
+      <div className="flex items-center gap-2 border-b border-white/5 bg-[#0a0a0f] px-3 py-2 min-h-[44px]">
         <div className="flex items-center gap-1.5">
-          <Code2 className="h-5 w-5 text-chart-3" />
-          <span className="font-bold text-sm tracking-tight">CodeForge</span>
+          <Code2 className="h-5 w-5 text-emerald-400" />
+          <span className="font-bold text-sm tracking-tight text-white">CodeForge</span>
         </div>
 
-        {/* Project selector — compact */}
         <Select
           value={activeProjectId || ""}
           onValueChange={(v) => onSelectProject(v as Id<"projects">)}
         >
-          <SelectTrigger className="flex-1 h-8 text-xs min-w-0">
+          <SelectTrigger className="flex-1 h-8 text-xs min-w-0 border-white/10 bg-white/5 text-white/80">
             <SelectValue placeholder="Project..." />
           </SelectTrigger>
           <SelectContent>
@@ -180,10 +180,9 @@ export function TopBar({
           </SelectContent>
         </Select>
 
-        {/* Hamburger menu */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 shrink-0">
+            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 shrink-0 text-white/40">
               <Menu className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
@@ -214,7 +213,6 @@ export function TopBar({
           </DropdownMenuContent>
         </DropdownMenu>
 
-        {/* Dialogs */}
         <Dialog open={showNewProject} onOpenChange={setShowNewProject}>
           <DialogContent>
             <DialogHeader>
@@ -245,11 +243,11 @@ export function TopBar({
 
   // ─── DESKTOP TOPBAR ─────────────────────────────────────────────
   return (
-    <div className="flex items-center gap-2 border-b border-border bg-card px-3 py-1.5 h-11">
+    <div className="flex items-center gap-2 border-b border-white/5 bg-[#0a0a0f] px-3 py-1.5 h-11">
       {/* Logo */}
       <div className="flex items-center gap-1.5 mr-2">
-        <Code2 className="h-5 w-5 text-chart-3" />
-        <span className="font-bold text-sm tracking-tight">CodeForge</span>
+        <Code2 className="h-5 w-5 text-emerald-400" />
+        <span className="font-bold text-sm tracking-tight text-white">CodeForge</span>
       </div>
 
       {/* Project selector */}
@@ -257,7 +255,7 @@ export function TopBar({
         value={activeProjectId || ""}
         onValueChange={(v) => onSelectProject(v as Id<"projects">)}
       >
-        <SelectTrigger className="w-48 h-7 text-xs">
+        <SelectTrigger className="w-48 h-7 text-xs border-white/10 bg-white/5 text-white/80">
           <SelectValue placeholder="Select project..." />
         </SelectTrigger>
         <SelectContent>
@@ -267,10 +265,7 @@ export function TopBar({
                 <FolderGit2 className="h-3 w-3" />
                 {p.name}
                 {p.githubRepo && (
-                  <Badge
-                    variant="secondary"
-                    className="text-[10px] py-0 px-1 h-4"
-                  >
+                  <Badge variant="secondary" className="text-[10px] py-0 px-1 h-4">
                     {p.githubRepo.split("/")[1]}
                   </Badge>
                 )}
@@ -283,7 +278,7 @@ export function TopBar({
       {/* New project */}
       <Dialog open={showNewProject} onOpenChange={setShowNewProject}>
         <DialogTrigger asChild>
-          <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-white/30 hover:text-white/60">
             <Plus className="h-3.5 w-3.5" />
           </Button>
         </DialogTrigger>
@@ -305,203 +300,42 @@ export function TopBar({
 
       <div className="flex-1" />
 
-      {/* GitHub status */}
+      {/* GitHub */}
       <Button
-        variant={githubConnected ? "ghost" : "outline"}
+        variant="ghost"
         size="sm"
-        className="h-7 text-xs gap-1"
-        onClick={() =>
-          githubConnected ? setShowImport(true) : setShowGitHub(true)
-        }
+        className="h-7 text-xs gap-1.5 text-white/40 hover:text-white/60"
+        onClick={() => (githubConnected ? setShowImport(true) : setShowGitHub(true))}
       >
         <Github className="h-3.5 w-3.5" />
-        {githubConnected ? "Import Repo" : "Connect GitHub"}
+        {githubConnected ? "Import" : "GitHub"}
       </Button>
 
-      {!githubConnected && (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-7 text-xs gap-1"
-          onClick={() => setShowGitHub(true)}
-        >
-          <Settings className="h-3.5 w-3.5" />
-        </Button>
-      )}
-
       {githubConnected && activeProject?.githubRepo && (
-        <Badge variant="outline" className="text-[10px] h-5">
+        <Badge variant="outline" className="text-[10px] h-5 border-white/10 text-white/40">
           <Github className="h-2.5 w-2.5 mr-1" />
           {activeProject.githubRepo}
         </Badge>
       )}
 
-      {/* Preview toggle */}
-      {onTogglePreview && (
-        <Button
-          variant={showPreview ? "secondary" : "ghost"}
-          size="sm"
-          className="h-7 text-xs gap-1"
-          onClick={onTogglePreview}
-        >
-          <Play className="h-3.5 w-3.5" />
-          Preview
-        </Button>
-      )}
+      {/* Separator */}
+      <div className="h-4 w-px bg-white/10" />
 
-      {/* Suggestions toggle */}
-      {onToggleSuggestions && (
-        <Button
-          variant={showSuggestions ? "secondary" : "ghost"}
-          size="sm"
-          className="h-7 text-xs gap-1"
-          onClick={onToggleSuggestions}
-        >
-          <Lightbulb className="h-3.5 w-3.5" />
-          Ideas
-        </Button>
-      )}
+      {/* Panel toggles */}
+      <ToggleBtn active={showPreview} onClick={onTogglePreview} icon={Play} label="Preview" />
+      <ToggleBtn active={showSuggestions} onClick={onToggleSuggestions} icon={Lightbulb} label="Ideas" />
+      <ToggleBtn active={showChat} onClick={onToggleChat} icon={MessageSquare} label="AI" />
+      <ToggleBtn active={showAgents} onClick={onToggleAgents} icon={Activity} label="Agents" />
+      <ToggleBtn active={showGit} onClick={onToggleGit} icon={GitBranch} label="Git" />
 
-      {/* Architect toggle */}
-      {onToggleArchitect && (
-        <Button
-          variant={showArchitect ? "secondary" : "ghost"}
-          size="sm"
-          className="h-7 text-xs gap-1"
-          onClick={onToggleArchitect}
-        >
-          <Hammer className="h-3.5 w-3.5" />
-          Spec
-        </Button>
-      )}
-
-      {/* Memory toggle */}
-      {onToggleMemory && (
-        <Button
-          variant={showMemory ? "secondary" : "ghost"}
-          size="sm"
-          className="h-7 text-xs gap-1"
-          onClick={onToggleMemory}
-        >
-          <Brain className="h-3.5 w-3.5" />
-          Brain
-        </Button>
-      )}
-
-      {/* Retro toggle */}
-      {onToggleRetro && (
-        <Button
-          variant={showRetro ? "secondary" : "ghost"}
-          size="sm"
-          className="h-7 text-xs gap-1"
-          onClick={onToggleRetro}
-        >
-          <RefreshCw className="h-3.5 w-3.5" />
-          Learn
-        </Button>
-      )}
-
-      {/* Stream toggle */}
-      {onToggleStream && (
-        <Button
-          variant={showStream ? "secondary" : "ghost"}
-          size="sm"
-          className="h-7 text-xs gap-1"
-          onClick={onToggleStream}
-        >
-          <Radio className="h-3.5 w-3.5" />
-          Live
-        </Button>
-      )}
-
-      {/* Search toggle */}
-      {onToggleSearch && (
-        <Button
-          variant={showSearch ? "secondary" : "ghost"}
-          size="sm"
-          className="h-7 text-xs gap-1"
-          onClick={onToggleSearch}
-        >
-          <Search className="h-3.5 w-3.5" />
-          Code
-        </Button>
-      )}
-
-      {/* Git toggle */}
-      {onToggleGit && (
-        <Button
-          variant={showGit ? "secondary" : "ghost"}
-          size="sm"
-          className="h-7 text-xs gap-1"
-          onClick={onToggleGit}
-        >
-          <GitBranch className="h-3.5 w-3.5" />
-          Git
-        </Button>
-      )}
-
-      {/* Deploy toggle */}
-      {onToggleDeploy && (
-        <Button
-          variant={showDeploy ? "secondary" : "ghost"}
-          size="sm"
-          className="h-7 text-xs gap-1"
-          onClick={onToggleDeploy}
-        >
-          <Rocket className="h-3.5 w-3.5" />
-          Ship
-        </Button>
-      )}
-
-      {/* Swarm toggle */}
-      <Button
-        variant={showSwarm ? "secondary" : "ghost"}
-        size="sm"
-        className="h-7 text-xs gap-1"
-        onClick={onToggleSwarm}
-      >
-        <Network className="h-3.5 w-3.5" />
-        Swarm
-      </Button>
-
-      {/* Diffs toggle */}
-      <Button
-        variant={showDiffs ? "secondary" : "ghost"}
-        size="sm"
-        className="h-7 text-xs gap-1"
-        onClick={onToggleDiffs}
-      >
-        <Diff className="h-3.5 w-3.5" />
-        Diffs
-      </Button>
-
-      {/* Analytics toggle */}
-      <Button
-        variant={showAnalytics ? "secondary" : "ghost"}
-        size="sm"
-        className="h-7 text-xs gap-1"
-        onClick={onToggleAnalytics}
-      >
-        <BarChart3 className="h-3.5 w-3.5" />
-        Stats
-      </Button>
-
-      {/* Chat toggle */}
-      <Button
-        variant={showChat ? "secondary" : "ghost"}
-        size="sm"
-        className="h-7 text-xs gap-1"
-        onClick={onToggleChat}
-      >
-        <MessageSquare className="h-3.5 w-3.5" />
-        AI
-      </Button>
+      {/* Separator */}
+      <div className="h-4 w-px bg-white/10" />
 
       {/* Sign out */}
       <Button
         variant="ghost"
         size="sm"
-        className="h-7 w-7 p-0"
+        className="h-7 w-7 p-0 text-white/30 hover:text-white/60"
         onClick={() => signOut()}
       >
         <LogOut className="h-3.5 w-3.5" />

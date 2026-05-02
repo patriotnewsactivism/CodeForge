@@ -16,6 +16,17 @@ export const list = query({
   },
 });
 
+// Alias used by frontend (IDEPage)
+export const listByProject = query({
+  args: { projectId: v.id("projects") },
+  handler: async (ctx, { projectId }) => {
+    return await ctx.db
+      .query("files")
+      .withIndex("by_project", (q) => q.eq("projectId", projectId))
+      .collect();
+  },
+});
+
 export const listWithContent = query({
   args: { projectId: v.id("projects") },
   handler: async (ctx, { projectId }) => {
@@ -33,6 +44,28 @@ export const getByPath = query({
       .query("files")
       .withIndex("by_project_and_path", (q) => q.eq("projectId", projectId).eq("path", path))
       .first();
+  },
+});
+
+// Alias: get a single file's full content by ID
+export const getContent = query({
+  args: { fileId: v.id("files") },
+  handler: async (ctx, { fileId }) => {
+    return await ctx.db.get(fileId);
+  },
+});
+
+// Alias for update by ID
+export const updateContent = mutation({
+  args: { fileId: v.id("files"), content: v.string() },
+  handler: async (ctx, { fileId, content }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+    await ctx.db.patch(fileId, {
+      content,
+      size: content.length,
+      lastModifiedBy: "user",
+    });
   },
 });
 
