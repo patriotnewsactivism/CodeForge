@@ -47,6 +47,8 @@ import { ArchitectureAdvisor } from "@/components/ide/ArchitectureAdvisor";
 import { TestGenerator } from "@/components/ide/TestGenerator";
 import { AgentDebatePanel } from "@/components/ide/AgentDebatePanel";
 import { DependencyScanner } from "@/components/ide/DependencyScanner";
+import { CodeCritic } from "@/components/ide/CodeCritic";
+import { PromptMarketplace } from "@/components/ide/PromptMarketplace";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -74,10 +76,12 @@ import {
   FlaskConical,
   Scale,
   Package,
+  Store,
+  ScanEye,
 } from "lucide-react";
 
 // ─── Types ──────────────────────────────────────────────────────
-type MobileTab = "files" | "editor" | "preview" | "chat" | "agents" | "suggestions" | "git" | "search" | "costs" | "terminal" | "memory" | "timeline" | "context" | "activity" | "architect" | "tests" | "debate" | "deps";
+type MobileTab = "files" | "editor" | "preview" | "chat" | "agents" | "suggestions" | "git" | "search" | "costs" | "terminal" | "memory" | "timeline" | "context" | "activity" | "architect" | "tests" | "debate" | "deps" | "critic" | "prompts";
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false);
@@ -130,6 +134,8 @@ export default function IDEPage() {
   const [showTests, setShowTests] = useState(false);
   const [showDebate, setShowDebate] = useState(false);
   const [showDeps, setShowDeps] = useState(false);
+  const [showCritic, setShowCritic] = useState(false);
+  const [showPromptMarket, setShowPromptMarket] = useState(false);
   const { settings: editorSettings, updateSettings } = useEditorSettings();
 
   // Auto-fix loop state
@@ -316,6 +322,8 @@ export default function IDEPage() {
     { id: "tests", label: "Tests", icon: FlaskConical, desc: "Auto-generate unit tests" },
     { id: "debate", label: "Debate", icon: Scale, desc: "Watch agents discuss approach" },
     { id: "deps", label: "Deps", icon: Package, desc: "Dependency scanner & optimization" },
+    { id: "critic", label: "Critic", icon: ScanEye, desc: "AI code review with grades" },
+    { id: "prompts", label: "Prompts", icon: Store, desc: "Browse prompt marketplace" },
     { id: "activity", label: "Activity", icon: Activity, desc: "Global activity log" },
     { id: "git", label: "Git", icon: GitBranch, desc: "GitHub sync and version control" },
     { id: "costs", label: "Costs", icon: DollarSign, desc: "AI usage and cost tracking" },
@@ -445,6 +453,12 @@ export default function IDEPage() {
           )}
           {mobileTab === "deps" && (
             <DependencyScanner projectId={activeProjectId} />
+          )}
+          {mobileTab === "critic" && (
+            <CodeCritic projectId={activeProjectId} activeFile={activeFileContent} />
+          )}
+          {mobileTab === "prompts" && (
+            <PromptMarketplace onUsePrompt={handleSendPrompt} />
           )}
           {mobileTab === "activity" && (
             <ActivityLog />
@@ -616,6 +630,10 @@ export default function IDEPage() {
         onToggleDebate={() => setShowDebate(!showDebate)}
         showDeps={showDeps}
         onToggleDeps={() => setShowDeps(!showDeps)}
+        showCritic={showCritic}
+        onToggleCritic={() => setShowCritic(!showCritic)}
+        showPromptMarket={showPromptMarket}
+        onTogglePromptMarket={() => setShowPromptMarket(!showPromptMarket)}
         githubConnected={githubSettings?.connected || false}
         isMobile={false}
         onOpenCommandPalette={() => setShowCommandPalette(true)}
@@ -786,7 +804,7 @@ export default function IDEPage() {
           )}
 
           {/* Agent Activity / Git / Costs / Memory / Timeline / Context / Activity / Architect / Tests / Debate / Replay panel */}
-          {(showAgents || showGit || showCosts || showMemory || showTimeline || showContext || showActivity || showArchitect || showTests || showDebate || showDeps) && (
+          {(showAgents || showGit || showCosts || showMemory || showTimeline || showContext || showActivity || showArchitect || showTests || showDebate || showDeps || showCritic || showPromptMarket) && (
             <>
               <ResizableHandle withHandle />
               <ResizablePanel defaultSize={18} minSize={14} maxSize={30}>
@@ -808,6 +826,10 @@ export default function IDEPage() {
                   <AgentDebatePanel projectId={activeProjectId} missionId={activeMissionId} />
                 ) : showDeps ? (
                   <DependencyScanner projectId={activeProjectId} />
+                ) : showCritic ? (
+                  <CodeCritic projectId={activeProjectId} activeFile={activeFileContent} />
+                ) : showPromptMarket ? (
+                  <PromptMarketplace onUsePrompt={handleSendPrompt} />
                 ) : showContext ? (
                   <ContextWindow
                     projectId={activeProjectId}

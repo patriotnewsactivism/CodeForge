@@ -62,6 +62,8 @@ import {
   FlaskConical,
   Scale,
   Package,
+  ScanEye,
+  Store,
 } from "lucide-react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { GitHubConnectDialog } from "./GitHubConnectDialog";
@@ -128,6 +130,10 @@ interface TopBarProps {
   onToggleDebate?: () => void;
   showDeps?: boolean;
   onToggleDeps?: () => void;
+  showCritic?: boolean;
+  onToggleCritic?: () => void;
+  showPromptMarket?: boolean;
+  onTogglePromptMarket?: () => void;
   githubConnected: boolean;
   isMobile?: boolean;
   onOpenCommandPalette?: () => void;
@@ -172,6 +178,10 @@ export function TopBar({
   onToggleDebate,
   showDeps,
   onToggleDeps,
+  showCritic,
+  onToggleCritic,
+  showPromptMarket,
+  onTogglePromptMarket,
   githubConnected,
   isMobile = false,
   onOpenCommandPalette,
@@ -454,6 +464,8 @@ export function TopBar({
       <ToggleBtn active={showTests} onClick={onToggleTests} icon={FlaskConical} label="Tests" />
       <ToggleBtn active={showDebate} onClick={onToggleDebate} icon={Scale} label="Debate" />
       <ToggleBtn active={showDeps} onClick={onToggleDeps} icon={Package} label="Deps" />
+      <ToggleBtn active={showCritic} onClick={onToggleCritic} icon={ScanEye} label="Critic" />
+      <ToggleBtn active={showPromptMarket} onClick={onTogglePromptMarket} icon={Store} label="Prompts" />
       <ToggleBtn active={showActivity} onClick={onToggleActivity} icon={ScrollText} label="Activity" />
 
       {/* Separator */}
