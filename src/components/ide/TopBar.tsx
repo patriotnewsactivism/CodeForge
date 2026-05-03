@@ -56,6 +56,8 @@ import {
   Scissors,
   Brain,
   Clock,
+  Eye,
+  ScrollText,
 } from "lucide-react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { GitHubConnectDialog } from "./GitHubConnectDialog";
@@ -110,6 +112,10 @@ interface TopBarProps {
   onToggleMemory?: () => void;
   showTimeline?: boolean;
   onToggleTimeline?: () => void;
+  showContext?: boolean;
+  onToggleContext?: () => void;
+  showActivity?: boolean;
+  onToggleActivity?: () => void;
   githubConnected: boolean;
   isMobile?: boolean;
   onOpenCommandPalette?: () => void;
@@ -142,6 +148,10 @@ export function TopBar({
   onToggleMemory,
   showTimeline,
   onToggleTimeline,
+  showContext,
+  onToggleContext,
+  showActivity,
+  onToggleActivity,
   githubConnected,
   isMobile = false,
   onOpenCommandPalette,
@@ -419,6 +429,8 @@ export function TopBar({
       <ToggleBtn active={showTerminal} onClick={onToggleTerminal} icon={Terminal} label="Terminal" />
       <ToggleBtn active={showMemory} onClick={onToggleMemory} icon={Brain} label="Memory" />
       <ToggleBtn active={showTimeline} onClick={onToggleTimeline} icon={Clock} label="History" />
+      <ToggleBtn active={showContext} onClick={onToggleContext} icon={Eye} label="Context" />
+      <ToggleBtn active={showActivity} onClick={onToggleActivity} icon={ScrollText} label="Activity" />
 
       {/* Separator */}
       <div className="h-4 w-px bg-white/10 mx-0.5" />

@@ -40,6 +40,9 @@ import { NotificationCenter } from "@/components/ide/NotificationCenter";
 import { ProjectStats } from "@/components/ide/ProjectStats";
 import { MemoryDashboard } from "@/components/ide/MemoryDashboard";
 import { MissionTimeline } from "@/components/ide/MissionTimeline";
+import { ContextWindow } from "@/components/ide/ContextWindow";
+import { ActivityLog } from "@/components/ide/ActivityLog";
+import { PerfMonitor } from "@/components/ide/PerfMonitor";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -66,7 +69,7 @@ import {
 } from "lucide-react";
 
 // ─── Types ──────────────────────────────────────────────────────
-type MobileTab = "files" | "editor" | "preview" | "chat" | "agents" | "suggestions" | "git" | "search" | "costs" | "terminal" | "memory" | "timeline";
+type MobileTab = "files" | "editor" | "preview" | "chat" | "agents" | "suggestions" | "git" | "search" | "costs" | "terminal" | "memory" | "timeline" | "context" | "activity";
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false);
@@ -113,6 +116,8 @@ export default function IDEPage() {
   const [showSettings, setShowSettings] = useState(false);
   const [showMemory, setShowMemory] = useState(false);
   const [showTimeline, setShowTimeline] = useState(false);
+  const [showContext, setShowContext] = useState(false);
+  const [showActivity, setShowActivity] = useState(false);
   const { settings: editorSettings, updateSettings } = useEditorSettings();
 
   // Auto-fix loop state
@@ -294,6 +299,8 @@ export default function IDEPage() {
     { id: "suggestions", label: "Ideas", icon: Lightbulb, desc: "AI improvement suggestions" },
     { id: "memory", label: "Memory", icon: Brain, desc: "Agent learnings and intelligence" },
     { id: "timeline", label: "History", icon: Clock, desc: "Mission history timeline" },
+    { id: "context", label: "Context", icon: Eye, desc: "What the AI sees right now" },
+    { id: "activity", label: "Activity", icon: Activity, desc: "Global activity log" },
     { id: "git", label: "Git", icon: GitBranch, desc: "GitHub sync and version control" },
     { id: "costs", label: "Costs", icon: DollarSign, desc: "AI usage and cost tracking" },
     { id: "terminal", label: "Terminal", icon: Terminal, desc: "Agent output and logs" },
@@ -403,6 +410,16 @@ export default function IDEPage() {
               onReplayMission={handleReplayMission}
               onViewAgents={handleViewAgents}
             />
+          )}
+          {mobileTab === "context" && (
+            <ContextWindow
+              projectId={activeProjectId}
+              activeFileId={activeFileId}
+              sessionId={activeSession?._id}
+            />
+          )}
+          {mobileTab === "activity" && (
+            <ActivityLog />
           )}
         </div>
 
@@ -559,6 +576,10 @@ export default function IDEPage() {
         onToggleMemory={() => setShowMemory(!showMemory)}
         showTimeline={showTimeline}
         onToggleTimeline={() => setShowTimeline(!showTimeline)}
+        showContext={showContext}
+        onToggleContext={() => setShowContext(!showContext)}
+        showActivity={showActivity}
+        onToggleActivity={() => setShowActivity(!showActivity)}
         githubConnected={githubSettings?.connected || false}
         isMobile={false}
         onOpenCommandPalette={() => setShowCommandPalette(true)}
@@ -728,8 +749,8 @@ export default function IDEPage() {
             </>
           )}
 
-          {/* Agent Activity / Git / Costs / Memory / Timeline / Replay panel */}
-          {(showAgents || showGit || showCosts || showMemory || showTimeline) && (
+          {/* Agent Activity / Git / Costs / Memory / Timeline / Context / Activity / Replay panel */}
+          {(showAgents || showGit || showCosts || showMemory || showTimeline || showContext || showActivity) && (
             <>
               <ResizableHandle withHandle />
               <ResizablePanel defaultSize={18} minSize={14} maxSize={30}>
@@ -743,6 +764,14 @@ export default function IDEPage() {
                     projectId={activeProjectId}
                     sessionId={activeSession?._id}
                   />
+                ) : showContext ? (
+                  <ContextWindow
+                    projectId={activeProjectId}
+                    activeFileId={activeFileId}
+                    sessionId={activeSession?._id}
+                  />
+                ) : showActivity ? (
+                  <ActivityLog />
                 ) : showMemory && showTimeline ? (
                   <ResizablePanelGroup direction="vertical">
                     <ResizablePanel defaultSize={50}>
