@@ -49,12 +49,14 @@ interface Tab {
 interface CodeEditorProps {
   file: FileContent;
   openTabs: Tab[];
-  activeFileId: Id<"files">;
+  activeFileId: Id<"files"> | null;
   onSelectTab: (id: Id<"files">) => void;
   onCloseTab: (id: Id<"files">) => void;
   onSave: (content: string) => Promise<void>;
   /** Previous content for diff view (from agent edits) */
   previousContent?: string | null;
+  /** Hide tab bar (used in split editor) */
+  hideTabBar?: boolean;
 }
 
 // ─── Language detection ──────────────────────────────────────────
@@ -137,6 +139,7 @@ export function CodeEditor({
   onCloseTab,
   onSave,
   previousContent,
+  hideTabBar,
 }: CodeEditorProps) {
   const [editedContent, setEditedContent] = useState(file.content || "");
   const [hasChanges, setHasChanges] = useState(false);
@@ -210,7 +213,7 @@ export function CodeEditor({
   return (
     <div className="flex h-full flex-col bg-[#0a0a0f]">
       {/* Tabs */}
-      <div className="flex items-center border-b border-white/5 bg-[#0d0d14]">
+      {!hideTabBar && <div className="flex items-center border-b border-white/5 bg-[#0d0d14]">
         <div className="flex-1 overflow-x-auto scrollbar-none">
           <div className="flex">
             {openTabs.map((tab) => (
@@ -294,7 +297,7 @@ export function CodeEditor({
             </Button>
           )}
         </div>
-      </div>
+      </div>}
 
       {/* Editor area */}
       <div className="flex-1 overflow-hidden">

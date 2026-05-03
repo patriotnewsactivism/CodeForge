@@ -30,6 +30,10 @@ import { CommandPalette } from "@/components/ide/CommandPalette";
 import { SearchPanel } from "@/components/ide/SearchPanel";
 import { CostDashboard } from "@/components/ide/CostDashboard";
 import { KeyboardShortcuts } from "@/components/ide/KeyboardShortcuts";
+import { TerminalPanel } from "@/components/ide/TerminalPanel";
+import { FileUpload } from "@/components/ide/FileUpload";
+import { Breadcrumb } from "@/components/ide/Breadcrumb";
+import { SettingsPanel, useEditorSettings } from "@/components/ide/SettingsPanel";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -46,10 +50,12 @@ import {
   GitBranch,
   Search,
   DollarSign,
+  Terminal,
+  Settings,
 } from "lucide-react";
 
 // ─── Types ──────────────────────────────────────────────────────
-type MobileTab = "files" | "editor" | "preview" | "chat" | "agents" | "suggestions" | "git" | "search" | "costs";
+type MobileTab = "files" | "editor" | "preview" | "chat" | "agents" | "suggestions" | "git" | "search" | "costs" | "terminal";
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false);
@@ -89,9 +95,12 @@ export default function IDEPage() {
   const [activeMissionId, setActiveMissionId] = useState<Id<"missions"> | null>(null);
   const [showReplay, setShowReplay] = useState(false);
 
-  // Command palette & shortcuts
+  // Command palette, shortcuts, terminal, settings
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [showTerminal, setShowTerminal] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const { settings: editorSettings, updateSettings } = useEditorSettings();
 
   // Auto-fix loop state
   const autoFixTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -251,6 +260,7 @@ export default function IDEPage() {
     { id: "suggestions", label: "Ideas", icon: Lightbulb },
     { id: "git", label: "Git", icon: GitBranch },
     { id: "costs", label: "Costs", icon: DollarSign },
+    { id: "terminal", label: "Term", icon: Terminal },
   ];
 
   // ─── MOBILE LAYOUT ───────────────────────────────────────────
@@ -342,6 +352,9 @@ export default function IDEPage() {
           {mobileTab === "costs" && (
             <CostDashboard projectId={activeProjectId} />
           )}
+          {mobileTab === "terminal" && (
+            <TerminalPanel projectId={activeProjectId} missionId={activeMissionId} />
+          )}
         </div>
 
         {/* Mobile bottom tabs */}
@@ -399,9 +412,12 @@ export default function IDEPage() {
         onToggleSearch={() => setShowSearch(!showSearch)}
         showCosts={showCosts}
         onToggleCosts={() => setShowCosts(!showCosts)}
+        showTerminal={showTerminal}
+        onToggleTerminal={() => setShowTerminal(!showTerminal)}
         githubConnected={githubSettings?.connected || false}
         isMobile={false}
         onOpenCommandPalette={() => setShowCommandPalette(true)}
+        onOpenSettings={() => setShowSettings(true)}
         onSendPrompt={handleSendPrompt}
       />
 
@@ -426,50 +442,93 @@ export default function IDEPage() {
 
           <ResizableHandle withHandle />
 
-          {/* Editor (+ optional Preview below) */}
+          {/* Editor (+ optional Preview/Terminal below) */}
           <ResizablePanel defaultSize={showChat ? 44 : 64}>
-            {showPreview ? (
-              <ResizablePanelGroup direction="vertical">
-                <ResizablePanel defaultSize={55}>
-                  {activeFileId && activeFileContent ? (
-                    <CodeEditor
-                      file={activeFileContent}
-                      openTabs={openTabs}
-                      activeFileId={activeFileId}
-                      onSelectTab={setActiveFileId}
-                      onCloseTab={handleCloseTab}
-                      onSave={handleSaveFile}
-                    />
+            <FileUpload projectId={activeProjectId} className="h-full">
+              {showPreview || showTerminal ? (
+                <ResizablePanelGroup direction="vertical">
+                  <ResizablePanel defaultSize={showPreview && showTerminal ? 45 : 55}>
+                    <div className="flex flex-col h-full">
+                      {activeFileId && activeFileContent && (
+                        <Breadcrumb
+                          path={activeFileContent.path}
+                          projectName={activeProject?.name}
+                        />
+                      )}
+                      <div className="flex-1">
+                        {activeFileId && activeFileContent ? (
+                          <CodeEditor
+                            file={activeFileContent}
+                            openTabs={openTabs}
+                            activeFileId={activeFileId}
+                            onSelectTab={setActiveFileId}
+                            onCloseTab={handleCloseTab}
+                            onSave={handleSaveFile}
+                          />
+                        ) : (
+                          <WelcomePanel
+                            projectCount={projects.length}
+                            onCreateProject={handleCreateProject}
+                          />
+                        )}
+                      </div>
+                    </div>
+                  </ResizablePanel>
+                  <ResizableHandle withHandle />
+                  {showPreview && showTerminal ? (
+                    <>
+                      <ResizablePanel defaultSize={30}>
+                        <PreviewPanel
+                          files={allFilesForPreview || []}
+                          onErrors={handlePreviewErrors}
+                        />
+                      </ResizablePanel>
+                      <ResizableHandle withHandle />
+                      <ResizablePanel defaultSize={25}>
+                        <TerminalPanel projectId={activeProjectId} missionId={activeMissionId} />
+                      </ResizablePanel>
+                    </>
+                  ) : showPreview ? (
+                    <ResizablePanel defaultSize={45}>
+                      <PreviewPanel
+                        files={allFilesForPreview || []}
+                        onErrors={handlePreviewErrors}
+                      />
+                    </ResizablePanel>
                   ) : (
-                    <WelcomePanel
-                      projectCount={projects.length}
-                      onCreateProject={handleCreateProject}
+                    <ResizablePanel defaultSize={35}>
+                      <TerminalPanel projectId={activeProjectId} missionId={activeMissionId} />
+                    </ResizablePanel>
+                  )}
+                </ResizablePanelGroup>
+              ) : (
+                <div className="flex flex-col h-full">
+                  {activeFileId && activeFileContent && (
+                    <Breadcrumb
+                      path={activeFileContent.path}
+                      projectName={activeProject?.name}
                     />
                   )}
-                </ResizablePanel>
-                <ResizableHandle withHandle />
-                <ResizablePanel defaultSize={45}>
-                  <PreviewPanel
-                    files={allFilesForPreview || []}
-                    onErrors={handlePreviewErrors}
-                  />
-                </ResizablePanel>
-              </ResizablePanelGroup>
-            ) : activeFileId && activeFileContent ? (
-              <CodeEditor
-                file={activeFileContent}
-                openTabs={openTabs}
-                activeFileId={activeFileId}
-                onSelectTab={setActiveFileId}
-                onCloseTab={handleCloseTab}
-                onSave={handleSaveFile}
-              />
-            ) : (
-              <WelcomePanel
-                projectCount={projects.length}
-                onCreateProject={handleCreateProject}
-              />
-            )}
+                  <div className="flex-1">
+                    {activeFileId && activeFileContent ? (
+                      <CodeEditor
+                        file={activeFileContent}
+                        openTabs={openTabs}
+                        activeFileId={activeFileId}
+                        onSelectTab={setActiveFileId}
+                        onCloseTab={handleCloseTab}
+                        onSave={handleSaveFile}
+                      />
+                    ) : (
+                      <WelcomePanel
+                        projectCount={projects.length}
+                        onCreateProject={handleCreateProject}
+                      />
+                    )}
+                  </div>
+                </div>
+              )}
+            </FileUpload>
           </ResizablePanel>
 
           {/* Suggestions panel */}
@@ -546,6 +605,14 @@ export default function IDEPage() {
       </div>
 
       <CostBar session={activeSession} />
+
+      {/* Settings */}
+      <SettingsPanel
+        open={showSettings}
+        onOpenChange={setShowSettings}
+        settings={editorSettings}
+        onUpdateSettings={updateSettings}
+      />
 
       {/* Overlays */}
       <CommandPalette

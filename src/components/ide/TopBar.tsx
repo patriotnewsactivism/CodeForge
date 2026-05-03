@@ -50,6 +50,8 @@ import {
   Key,
   Command,
   Keyboard,
+  Terminal,
+  Settings,
 } from "lucide-react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { GitHubConnectDialog } from "./GitHubConnectDialog";
@@ -93,9 +95,12 @@ interface TopBarProps {
   onToggleSearch?: () => void;
   showCosts?: boolean;
   onToggleCosts?: () => void;
+  showTerminal?: boolean;
+  onToggleTerminal?: () => void;
   githubConnected: boolean;
   isMobile?: boolean;
   onOpenCommandPalette?: () => void;
+  onOpenSettings?: () => void;
   onSendPrompt?: (prompt: string) => void;
 }
 
@@ -118,9 +123,12 @@ export function TopBar({
   onToggleSearch,
   showCosts,
   onToggleCosts,
+  showTerminal,
+  onToggleTerminal,
   githubConnected,
   isMobile = false,
   onOpenCommandPalette,
+  onOpenSettings,
   onSendPrompt,
 }: TopBarProps) {
   const [showNewProject, setShowNewProject] = useState(false);
@@ -374,9 +382,17 @@ export function TopBar({
       <ToggleBtn active={showAgents} onClick={onToggleAgents} icon={Activity} label="Agents" />
       <ToggleBtn active={showGit} onClick={onToggleGit} icon={GitBranch} label="Git" />
       <ToggleBtn active={showCosts} onClick={onToggleCosts} icon={DollarSign} label="Costs" />
+      <ToggleBtn active={showTerminal} onClick={onToggleTerminal} icon={Terminal} label="Terminal" />
 
       {/* Separator */}
       <div className="h-4 w-px bg-white/10 mx-0.5" />
+
+      {/* Settings */}
+      {onOpenSettings && (
+        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-white/30 hover:text-white/60" onClick={onOpenSettings}>
+          <Settings className="h-3.5 w-3.5" />
+        </Button>
+      )}
 
       {/* Sign out */}
       <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-white/30 hover:text-white/60" onClick={() => signOut()}>
