@@ -53,6 +53,9 @@ import { AgentTrainer } from "@/components/ide/AgentTrainer";
 import { LiveDeployPreview } from "@/components/ide/LiveDeployPreview";
 import { PerformanceProfiler } from "@/components/ide/PerformanceProfiler";
 import { CollabHub } from "@/components/ide/CollabHub";
+import { AIRefactor } from "@/components/ide/AIRefactor";
+import { VoiceToApp } from "@/components/ide/VoiceToApp";
+import { APITester } from "@/components/ide/APITester";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -86,10 +89,13 @@ import {
   Globe,
   Gauge,
   Users,
+  Wand2,
+  Mic,
+  Radio,
 } from "lucide-react";
 
 // ─── Types ──────────────────────────────────────────────────────
-type MobileTab = "files" | "editor" | "preview" | "chat" | "agents" | "suggestions" | "git" | "search" | "costs" | "terminal" | "memory" | "timeline" | "context" | "activity" | "architect" | "tests" | "debate" | "deps" | "critic" | "prompts" | "trainer" | "deploy" | "profiler" | "collab";
+type MobileTab = "files" | "editor" | "preview" | "chat" | "agents" | "suggestions" | "git" | "search" | "costs" | "terminal" | "memory" | "timeline" | "context" | "activity" | "architect" | "tests" | "debate" | "deps" | "critic" | "prompts" | "trainer" | "deploy" | "profiler" | "collab" | "refactor" | "voiceapp" | "apitester";
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false);
@@ -148,6 +154,9 @@ export default function IDEPage() {
   const [showLiveDeploy, setShowLiveDeploy] = useState(false);
   const [showProfiler, setShowProfiler] = useState(false);
   const [showCollab, setShowCollab] = useState(false);
+  const [showRefactor, setShowRefactor] = useState(false);
+  const [showVoiceApp, setShowVoiceApp] = useState(false);
+  const [showApiTester, setShowApiTester] = useState(false);
   const { settings: editorSettings, updateSettings } = useEditorSettings();
 
   // Auto-fix loop state
@@ -340,6 +349,9 @@ export default function IDEPage() {
     { id: "deploy", label: "Live Preview", icon: Globe, desc: "Preview your deployed app" },
     { id: "profiler", label: "Profiler", icon: Gauge, desc: "Performance analysis & warnings" },
     { id: "collab", label: "Collab", icon: Users, desc: "Real-time collaboration hub" },
+    { id: "refactor", label: "Refactor", icon: Wand2, desc: "AI-powered code refactoring" },
+    { id: "voiceapp", label: "Voice→App", icon: Mic, desc: "Speak and build an app" },
+    { id: "apitester", label: "API Test", icon: Radio, desc: "Built-in REST API tester" },
     { id: "activity", label: "Activity", icon: Activity, desc: "Global activity log" },
     { id: "git", label: "Git", icon: GitBranch, desc: "GitHub sync and version control" },
     { id: "costs", label: "Costs", icon: DollarSign, desc: "AI usage and cost tracking" },
@@ -487,6 +499,15 @@ export default function IDEPage() {
           )}
           {mobileTab === "collab" && (
             <CollabHub projectId={activeProjectId} sessionId={sessionId} />
+          )}
+          {mobileTab === "refactor" && (
+            <AIRefactor projectId={activeProjectId} activeFile={activeFileContent} />
+          )}
+          {mobileTab === "voiceapp" && (
+            <VoiceToApp projectId={activeProjectId} sessionId={sessionId} onSendMessage={handleSendPrompt} />
+          )}
+          {mobileTab === "apitester" && (
+            <APITester />
           )}
           {mobileTab === "activity" && (
             <ActivityLog />
@@ -670,6 +691,12 @@ export default function IDEPage() {
         onToggleProfiler={() => setShowProfiler(!showProfiler)}
         showCollab={showCollab}
         onToggleCollab={() => setShowCollab(!showCollab)}
+        showRefactor={showRefactor}
+        onToggleRefactor={() => setShowRefactor(!showRefactor)}
+        showVoiceApp={showVoiceApp}
+        onToggleVoiceApp={() => setShowVoiceApp(!showVoiceApp)}
+        showApiTester={showApiTester}
+        onToggleApiTester={() => setShowApiTester(!showApiTester)}
         githubConnected={githubSettings?.connected || false}
         isMobile={false}
         onOpenCommandPalette={() => setShowCommandPalette(true)}
@@ -840,7 +867,7 @@ export default function IDEPage() {
           )}
 
           {/* Agent Activity / Git / Costs / Memory / Timeline / Context / Activity / Architect / Tests / Debate / Replay panel */}
-          {(showAgents || showGit || showCosts || showMemory || showTimeline || showContext || showActivity || showArchitect || showTests || showDebate || showDeps || showCritic || showPromptMarket || showTrainer || showLiveDeploy || showProfiler || showCollab) && (
+          {(showAgents || showGit || showCosts || showMemory || showTimeline || showContext || showActivity || showArchitect || showTests || showDebate || showDeps || showCritic || showPromptMarket || showTrainer || showLiveDeploy || showProfiler || showCollab || showRefactor || showVoiceApp || showApiTester) && (
             <>
               <ResizableHandle withHandle />
               <ResizablePanel defaultSize={18} minSize={14} maxSize={30}>
@@ -874,6 +901,12 @@ export default function IDEPage() {
                   <PerformanceProfiler projectId={activeProjectId} />
                 ) : showCollab ? (
                   <CollabHub projectId={activeProjectId} sessionId={sessionId} />
+                ) : showRefactor ? (
+                  <AIRefactor projectId={activeProjectId} activeFile={activeFileContent} />
+                ) : showVoiceApp ? (
+                  <VoiceToApp projectId={activeProjectId} sessionId={sessionId} onSendMessage={handleSendPrompt} />
+                ) : showApiTester ? (
+                  <APITester />
                 ) : showContext ? (
                   <ContextWindow
                     projectId={activeProjectId}

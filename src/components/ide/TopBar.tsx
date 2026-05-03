@@ -68,6 +68,9 @@ import {
   Globe,
   Gauge,
   Users,
+  Wand2,
+  Mic,
+  Radio,
 } from "lucide-react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { GitHubConnectDialog } from "./GitHubConnectDialog";
@@ -146,6 +149,12 @@ interface TopBarProps {
   onToggleProfiler?: () => void;
   showCollab?: boolean;
   onToggleCollab?: () => void;
+  showRefactor?: boolean;
+  onToggleRefactor?: () => void;
+  showVoiceApp?: boolean;
+  onToggleVoiceApp?: () => void;
+  showApiTester?: boolean;
+  onToggleApiTester?: () => void;
   githubConnected: boolean;
   isMobile?: boolean;
   onOpenCommandPalette?: () => void;
@@ -202,6 +211,12 @@ export function TopBar({
   onToggleProfiler,
   showCollab,
   onToggleCollab,
+  showRefactor,
+  onToggleRefactor,
+  showVoiceApp,
+  onToggleVoiceApp,
+  showApiTester,
+  onToggleApiTester,
   githubConnected,
   isMobile = false,
   onOpenCommandPalette,
@@ -490,6 +505,9 @@ export function TopBar({
       <ToggleBtn active={showLiveDeploy} onClick={onToggleLiveDeploy} icon={Globe} label="Preview" />
       <ToggleBtn active={showProfiler} onClick={onToggleProfiler} icon={Gauge} label="Profiler" />
       <ToggleBtn active={showCollab} onClick={onToggleCollab} icon={Users} label="Collab" />
+      <ToggleBtn active={showRefactor} onClick={onToggleRefactor} icon={Wand2} label="Refactor" />
+      <ToggleBtn active={showVoiceApp} onClick={onToggleVoiceApp} icon={Mic} label="Voice" />
+      <ToggleBtn active={showApiTester} onClick={onToggleApiTester} icon={Radio} label="API" />
       <ToggleBtn active={showActivity} onClick={onToggleActivity} icon={ScrollText} label="Activity" />
 
       {/* Separator */}
