@@ -54,6 +54,8 @@ import {
   Settings,
   BookOpen,
   Scissors,
+  Brain,
+  Clock,
 } from "lucide-react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { GitHubConnectDialog } from "./GitHubConnectDialog";
@@ -104,6 +106,10 @@ interface TopBarProps {
   onToggleCosts?: () => void;
   showTerminal?: boolean;
   onToggleTerminal?: () => void;
+  showMemory?: boolean;
+  onToggleMemory?: () => void;
+  showTimeline?: boolean;
+  onToggleTimeline?: () => void;
   githubConnected: boolean;
   isMobile?: boolean;
   onOpenCommandPalette?: () => void;
@@ -132,6 +138,10 @@ export function TopBar({
   onToggleCosts,
   showTerminal,
   onToggleTerminal,
+  showMemory,
+  onToggleMemory,
+  showTimeline,
+  onToggleTimeline,
   githubConnected,
   isMobile = false,
   onOpenCommandPalette,
@@ -407,6 +417,8 @@ export function TopBar({
       <ToggleBtn active={showGit} onClick={onToggleGit} icon={GitBranch} label="Git" />
       <ToggleBtn active={showCosts} onClick={onToggleCosts} icon={DollarSign} label="Costs" />
       <ToggleBtn active={showTerminal} onClick={onToggleTerminal} icon={Terminal} label="Terminal" />
+      <ToggleBtn active={showMemory} onClick={onToggleMemory} icon={Brain} label="Memory" />
+      <ToggleBtn active={showTimeline} onClick={onToggleTimeline} icon={Clock} label="History" />
 
       {/* Separator */}
       <div className="h-4 w-px bg-white/10 mx-0.5" />

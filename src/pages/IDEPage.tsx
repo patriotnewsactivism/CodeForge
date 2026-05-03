@@ -38,6 +38,8 @@ import { AIReviewPanel } from "@/components/ide/AIReviewPanel";
 import { CollaborationBar } from "@/components/ide/CollaborationBar";
 import { NotificationCenter } from "@/components/ide/NotificationCenter";
 import { ProjectStats } from "@/components/ide/ProjectStats";
+import { MemoryDashboard } from "@/components/ide/MemoryDashboard";
+import { MissionTimeline } from "@/components/ide/MissionTimeline";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -59,10 +61,12 @@ import {
   MoreHorizontal,
   X,
   Eye,
+  Brain,
+  Clock,
 } from "lucide-react";
 
 // ─── Types ──────────────────────────────────────────────────────
-type MobileTab = "files" | "editor" | "preview" | "chat" | "agents" | "suggestions" | "git" | "search" | "costs" | "terminal";
+type MobileTab = "files" | "editor" | "preview" | "chat" | "agents" | "suggestions" | "git" | "search" | "costs" | "terminal" | "memory" | "timeline";
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false);
@@ -102,11 +106,13 @@ export default function IDEPage() {
   const [activeMissionId, setActiveMissionId] = useState<Id<"missions"> | null>(null);
   const [showReplay, setShowReplay] = useState(false);
 
-  // Command palette, shortcuts, terminal, settings
+  // Command palette, shortcuts, terminal, settings, memory, timeline
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showTerminal, setShowTerminal] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showMemory, setShowMemory] = useState(false);
+  const [showTimeline, setShowTimeline] = useState(false);
   const { settings: editorSettings, updateSettings } = useEditorSettings();
 
   // Auto-fix loop state
@@ -256,6 +262,20 @@ export default function IDEPage() {
     if (window.innerWidth < 768) setMobileTab("chat");
   }, []);
 
+  const handleReplayMission = useCallback((missionId: Id<"missions">) => {
+    setActiveMissionId(missionId);
+    setShowReplay(true);
+    setShowAgents(true);
+    if (window.innerWidth < 768) setMobileTab("agents");
+  }, []);
+
+  const handleViewAgents = useCallback((missionId: Id<"missions">) => {
+    setActiveMissionId(missionId);
+    setShowReplay(false);
+    setShowAgents(true);
+    if (window.innerWidth < 768) setMobileTab("agents");
+  }, []);
+
   // ─── Mobile Tabs ──────────────────────────────────────────────
   // Primary: 4 most-used tabs always visible
   // Secondary: accessible from "More" drawer
@@ -272,6 +292,8 @@ export default function IDEPage() {
     { id: "preview", label: "Preview", icon: Play, desc: "Live preview of your project" },
     { id: "search", label: "Search", icon: Search, desc: "Search across all project files" },
     { id: "suggestions", label: "Ideas", icon: Lightbulb, desc: "AI improvement suggestions" },
+    { id: "memory", label: "Memory", icon: Brain, desc: "Agent learnings and intelligence" },
+    { id: "timeline", label: "History", icon: Clock, desc: "Mission history timeline" },
     { id: "git", label: "Git", icon: GitBranch, desc: "GitHub sync and version control" },
     { id: "costs", label: "Costs", icon: DollarSign, desc: "AI usage and cost tracking" },
     { id: "terminal", label: "Terminal", icon: Terminal, desc: "Agent output and logs" },
@@ -371,6 +393,16 @@ export default function IDEPage() {
           )}
           {mobileTab === "terminal" && (
             <TerminalPanel projectId={activeProjectId} missionId={activeMissionId} />
+          )}
+          {mobileTab === "memory" && (
+            <MemoryDashboard projectId={activeProjectId} />
+          )}
+          {mobileTab === "timeline" && (
+            <MissionTimeline
+              projectId={activeProjectId}
+              onReplayMission={handleReplayMission}
+              onViewAgents={handleViewAgents}
+            />
           )}
         </div>
 
@@ -523,6 +555,10 @@ export default function IDEPage() {
         onToggleCosts={() => setShowCosts(!showCosts)}
         showTerminal={showTerminal}
         onToggleTerminal={() => setShowTerminal(!showTerminal)}
+        showMemory={showMemory}
+        onToggleMemory={() => setShowMemory(!showMemory)}
+        showTimeline={showTimeline}
+        onToggleTimeline={() => setShowTimeline(!showTimeline)}
         githubConnected={githubSettings?.connected || false}
         isMobile={false}
         onOpenCommandPalette={() => setShowCommandPalette(true)}
@@ -692,8 +728,8 @@ export default function IDEPage() {
             </>
           )}
 
-          {/* Agent Activity / Git / Costs / Replay panel */}
-          {(showAgents || showGit || showCosts) && (
+          {/* Agent Activity / Git / Costs / Memory / Timeline / Replay panel */}
+          {(showAgents || showGit || showCosts || showMemory || showTimeline) && (
             <>
               <ResizableHandle withHandle />
               <ResizablePanel defaultSize={18} minSize={14} maxSize={30}>
@@ -706,6 +742,28 @@ export default function IDEPage() {
                   <CostDashboard
                     projectId={activeProjectId}
                     sessionId={activeSession?._id}
+                  />
+                ) : showMemory && showTimeline ? (
+                  <ResizablePanelGroup direction="vertical">
+                    <ResizablePanel defaultSize={50}>
+                      <MemoryDashboard projectId={activeProjectId} />
+                    </ResizablePanel>
+                    <ResizableHandle withHandle />
+                    <ResizablePanel defaultSize={50}>
+                      <MissionTimeline
+                        projectId={activeProjectId}
+                        onReplayMission={handleReplayMission}
+                        onViewAgents={handleViewAgents}
+                      />
+                    </ResizablePanel>
+                  </ResizablePanelGroup>
+                ) : showMemory ? (
+                  <MemoryDashboard projectId={activeProjectId} />
+                ) : showTimeline ? (
+                  <MissionTimeline
+                    projectId={activeProjectId}
+                    onReplayMission={handleReplayMission}
+                    onViewAgents={handleViewAgents}
                   />
                 ) : showAgents && showGit ? (
                   <ResizablePanelGroup direction="vertical">
