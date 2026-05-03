@@ -466,6 +466,61 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ─── PRICING ─── */}
+      <section className="py-20 border-t border-white/5">
+        <div className="max-w-5xl mx-auto px-4 text-center">
+          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight mb-4">
+            Simple, transparent pricing
+          </h2>
+          <p className="text-sm text-white/30 mb-12 max-w-lg mx-auto">
+            Start free. Upgrade when you need more AI power. Every plan has built-in cost protection.
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              { name: "Free", price: "$0", period: "forever", features: ["25 AI requests/day", "3 missions/day", "2 agents", "3 projects"], accent: "border-white/10" },
+              { name: "Weekly", price: "$9.99", period: "/week", features: ["200 AI requests/day", "20 missions/day", "5 agents", "10 projects"], accent: "border-blue-500/20" },
+              { name: "Monthly", price: "$29.99", period: "/month", features: ["500 AI requests/day", "50 missions/day", "10 agents", "25 projects"], accent: "border-purple-500/30", popular: true },
+              { name: "Lifetime", price: "$299.99", period: "one-time", features: ["1,000 AI requests/day", "100 missions/day", "20 agents", "All future features"], accent: "border-amber-500/20", badge: "FOUNDER" },
+            ].map((plan) => (
+              <div key={plan.name} className={`relative rounded-xl border ${plan.accent} bg-white/[0.01] p-5 text-left`}>
+                {plan.popular && (
+                  <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-purple-500 text-white text-[9px] font-bold px-2.5 py-0.5 rounded-full">
+                    MOST POPULAR
+                  </div>
+                )}
+                {plan.badge && (
+                  <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[9px] font-bold px-2.5 py-0.5 rounded-full">
+                    {plan.badge}
+                  </div>
+                )}
+                <h3 className="text-sm font-bold text-white/60 mb-1">{plan.name}</h3>
+                <div className="mb-3">
+                  <span className="text-xl font-extrabold text-white/80">{plan.price}</span>
+                  <span className="text-xs text-white/20 ml-1">{plan.period}</span>
+                </div>
+                <div className="space-y-1.5">
+                  {plan.features.map((f) => (
+                    <div key={f} className="flex items-center gap-2 text-[11px] text-white/25">
+                      <Check className="h-3 w-3 text-emerald-400/40" />
+                      {f}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <Button
+            variant="outline"
+            className="mt-8 text-xs border-white/10 text-white/30 hover:text-white/50"
+            onClick={() => navigate("/pricing")}
+          >
+            See full comparison →
+          </Button>
+        </div>
+      </section>
+
       {/* ─── CTA ─── */}
       <section className="py-20 sm:py-28">
         <div className="max-w-3xl mx-auto px-4 text-center">

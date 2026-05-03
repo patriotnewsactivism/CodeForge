@@ -28,9 +28,10 @@ function App() {
             </Route>
           </Route>
 
+          <Route path="/pricing" element={<PricingPageWrapper />} />
+
           <Route element={<ProtectedRoute />}>
             <Route path="/ide" element={<IDEPage />} />
-            <Route path="/pricing" element={<PricingPageWrapper />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />
