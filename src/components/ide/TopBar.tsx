@@ -52,12 +52,16 @@ import {
   Keyboard,
   Terminal,
   Settings,
+  BookOpen,
 } from "lucide-react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { GitHubConnectDialog } from "./GitHubConnectDialog";
 import { ImportRepoDialog } from "./ImportRepoDialog";
 import { ExportButton } from "./ExportButton";
 import { TemplateMarketplace } from "./TemplateMarketplace";
+import { NotificationCenter } from "./NotificationCenter";
+import { CollaborationBar } from "./CollaborationBar";
+import { PromptLibrary } from "./PromptLibrary";
 import { DeployPanel } from "./DeployPanel";
 import { EnvManager } from "./EnvManager";
 import {
@@ -137,6 +141,7 @@ export function TopBar({
   const [showTemplates, setShowTemplates] = useState(false);
   const [showDeploy, setShowDeploy] = useState(false);
   const [showEnv, setShowEnv] = useState(false);
+  const [showPromptLib, setShowPromptLib] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
   const createProject = useMutation(api.projects.create);
   const { signOut } = useAuthActions();
@@ -355,6 +360,12 @@ export function TopBar({
         <Rocket className="h-3.5 w-3.5" /> Deploy
       </Button>
 
+      {/* Prompt Library */}
+      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-white/30 hover:text-white/60"
+        onClick={() => setShowPromptLib(true)} title="Prompt Library">
+        <BookOpen className="h-3.5 w-3.5" />
+      </Button>
+
       {/* Env */}
       <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-white/30 hover:text-white/60"
         onClick={() => setShowEnv(true)} title="Environment Variables">
@@ -387,6 +398,12 @@ export function TopBar({
       {/* Separator */}
       <div className="h-4 w-px bg-white/10 mx-0.5" />
 
+      {/* Collaboration */}
+      <CollaborationBar projectId={activeProjectId} projectName={activeProject?.name} />
+
+      {/* Notifications */}
+      <NotificationCenter />
+
       {/* Settings */}
       {onOpenSettings && (
         <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-white/30 hover:text-white/60" onClick={onOpenSettings}>
@@ -405,6 +422,7 @@ export function TopBar({
       <TemplateMarketplace open={showTemplates} onOpenChange={setShowTemplates} onSelectProject={onSelectProject} />
       <DeployPanel open={showDeploy} onOpenChange={setShowDeploy} projectId={activeProjectId} projectName={activeProject?.name} />
       <EnvManager open={showEnv} onOpenChange={setShowEnv} projectId={activeProjectId} />
+      <PromptLibrary open={showPromptLib} onOpenChange={setShowPromptLib} onSelectPrompt={(p) => onSendPrompt?.(p)} />
     </div>
   );
 }

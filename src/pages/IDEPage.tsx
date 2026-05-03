@@ -34,6 +34,10 @@ import { TerminalPanel } from "@/components/ide/TerminalPanel";
 import { FileUpload } from "@/components/ide/FileUpload";
 import { Breadcrumb } from "@/components/ide/Breadcrumb";
 import { SettingsPanel, useEditorSettings } from "@/components/ide/SettingsPanel";
+import { AIReviewPanel } from "@/components/ide/AIReviewPanel";
+import { CollaborationBar } from "@/components/ide/CollaborationBar";
+import { NotificationCenter } from "@/components/ide/NotificationCenter";
+import { ProjectStats } from "@/components/ide/ProjectStats";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -531,15 +535,36 @@ export default function IDEPage() {
             </FileUpload>
           </ResizablePanel>
 
-          {/* Suggestions panel */}
+          {/* Suggestions + AI Review + Stats panel */}
           {showSuggestions && (
             <>
               <ResizableHandle withHandle />
-              <ResizablePanel defaultSize={14} minSize={10} maxSize={22}>
-                <SuggestionsPanel
-                  projectId={activeProjectId}
-                  onExecuteSuggestion={handleExecuteSuggestion}
-                />
+              <ResizablePanel defaultSize={16} minSize={12} maxSize={26}>
+                <ResizablePanelGroup direction="vertical">
+                  <ResizablePanel defaultSize={40}>
+                    <SuggestionsPanel
+                      projectId={activeProjectId}
+                      onExecuteSuggestion={handleExecuteSuggestion}
+                    />
+                  </ResizablePanel>
+                  <ResizableHandle withHandle />
+                  <ResizablePanel defaultSize={40}>
+                    <AIReviewPanel
+                      projectId={activeProjectId}
+                      activeFile={activeFileContent}
+                      onSendPrompt={handleSendPrompt}
+                    />
+                  </ResizablePanel>
+                  <ResizableHandle withHandle />
+                  <ResizablePanel defaultSize={20}>
+                    <div className="h-full overflow-y-auto bg-[#0a0a0f]">
+                      <div className="flex items-center gap-1.5 px-3 py-2 border-b border-white/5 bg-[#0d0d14]">
+                        <span className="text-[11px] font-semibold text-white/40">📊 Stats</span>
+                      </div>
+                      <ProjectStats projectId={activeProjectId} />
+                    </div>
+                  </ResizablePanel>
+                </ResizablePanelGroup>
               </ResizablePanel>
             </>
           )}
