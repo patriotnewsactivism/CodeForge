@@ -61,6 +61,7 @@ import {
   Building2,
   FlaskConical,
   Scale,
+  Package,
 } from "lucide-react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { GitHubConnectDialog } from "./GitHubConnectDialog";
@@ -125,6 +126,8 @@ interface TopBarProps {
   onToggleTests?: () => void;
   showDebate?: boolean;
   onToggleDebate?: () => void;
+  showDeps?: boolean;
+  onToggleDeps?: () => void;
   githubConnected: boolean;
   isMobile?: boolean;
   onOpenCommandPalette?: () => void;
@@ -167,6 +170,8 @@ export function TopBar({
   onToggleTests,
   showDebate,
   onToggleDebate,
+  showDeps,
+  onToggleDeps,
   githubConnected,
   isMobile = false,
   onOpenCommandPalette,
@@ -448,6 +453,7 @@ export function TopBar({
       <ToggleBtn active={showArchitect} onClick={onToggleArchitect} icon={Building2} label="Advisor" />
       <ToggleBtn active={showTests} onClick={onToggleTests} icon={FlaskConical} label="Tests" />
       <ToggleBtn active={showDebate} onClick={onToggleDebate} icon={Scale} label="Debate" />
+      <ToggleBtn active={showDeps} onClick={onToggleDeps} icon={Package} label="Deps" />
       <ToggleBtn active={showActivity} onClick={onToggleActivity} icon={ScrollText} label="Activity" />
 
       {/* Separator */}

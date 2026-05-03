@@ -46,6 +46,7 @@ import { PerfMonitor } from "@/components/ide/PerfMonitor";
 import { ArchitectureAdvisor } from "@/components/ide/ArchitectureAdvisor";
 import { TestGenerator } from "@/components/ide/TestGenerator";
 import { AgentDebatePanel } from "@/components/ide/AgentDebatePanel";
+import { DependencyScanner } from "@/components/ide/DependencyScanner";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -72,10 +73,11 @@ import {
   Building2,
   FlaskConical,
   Scale,
+  Package,
 } from "lucide-react";
 
 // ─── Types ──────────────────────────────────────────────────────
-type MobileTab = "files" | "editor" | "preview" | "chat" | "agents" | "suggestions" | "git" | "search" | "costs" | "terminal" | "memory" | "timeline" | "context" | "activity" | "architect" | "tests" | "debate";
+type MobileTab = "files" | "editor" | "preview" | "chat" | "agents" | "suggestions" | "git" | "search" | "costs" | "terminal" | "memory" | "timeline" | "context" | "activity" | "architect" | "tests" | "debate" | "deps";
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false);
@@ -127,6 +129,7 @@ export default function IDEPage() {
   const [showArchitect, setShowArchitect] = useState(false);
   const [showTests, setShowTests] = useState(false);
   const [showDebate, setShowDebate] = useState(false);
+  const [showDeps, setShowDeps] = useState(false);
   const { settings: editorSettings, updateSettings } = useEditorSettings();
 
   // Auto-fix loop state
@@ -312,6 +315,7 @@ export default function IDEPage() {
     { id: "architect", label: "Advisor", icon: Building2, desc: "Architecture analysis & insights" },
     { id: "tests", label: "Tests", icon: FlaskConical, desc: "Auto-generate unit tests" },
     { id: "debate", label: "Debate", icon: Scale, desc: "Watch agents discuss approach" },
+    { id: "deps", label: "Deps", icon: Package, desc: "Dependency scanner & optimization" },
     { id: "activity", label: "Activity", icon: Activity, desc: "Global activity log" },
     { id: "git", label: "Git", icon: GitBranch, desc: "GitHub sync and version control" },
     { id: "costs", label: "Costs", icon: DollarSign, desc: "AI usage and cost tracking" },
@@ -438,6 +442,9 @@ export default function IDEPage() {
           )}
           {mobileTab === "debate" && (
             <AgentDebatePanel projectId={activeProjectId} missionId={activeMissionId} />
+          )}
+          {mobileTab === "deps" && (
+            <DependencyScanner projectId={activeProjectId} />
           )}
           {mobileTab === "activity" && (
             <ActivityLog />
@@ -607,6 +614,8 @@ export default function IDEPage() {
         onToggleTests={() => setShowTests(!showTests)}
         showDebate={showDebate}
         onToggleDebate={() => setShowDebate(!showDebate)}
+        showDeps={showDeps}
+        onToggleDeps={() => setShowDeps(!showDeps)}
         githubConnected={githubSettings?.connected || false}
         isMobile={false}
         onOpenCommandPalette={() => setShowCommandPalette(true)}
@@ -777,7 +786,7 @@ export default function IDEPage() {
           )}
 
           {/* Agent Activity / Git / Costs / Memory / Timeline / Context / Activity / Architect / Tests / Debate / Replay panel */}
-          {(showAgents || showGit || showCosts || showMemory || showTimeline || showContext || showActivity || showArchitect || showTests || showDebate) && (
+          {(showAgents || showGit || showCosts || showMemory || showTimeline || showContext || showActivity || showArchitect || showTests || showDebate || showDeps) && (
             <>
               <ResizableHandle withHandle />
               <ResizablePanel defaultSize={18} minSize={14} maxSize={30}>
@@ -797,6 +806,8 @@ export default function IDEPage() {
                   <TestGenerator projectId={activeProjectId} activeFile={activeFileContent} />
                 ) : showDebate ? (
                   <AgentDebatePanel projectId={activeProjectId} missionId={activeMissionId} />
+                ) : showDeps ? (
+                  <DependencyScanner projectId={activeProjectId} />
                 ) : showContext ? (
                   <ContextWindow
                     projectId={activeProjectId}
