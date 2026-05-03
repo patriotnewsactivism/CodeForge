@@ -49,6 +49,7 @@ import { AgentDebatePanel } from "@/components/ide/AgentDebatePanel";
 import { DependencyScanner } from "@/components/ide/DependencyScanner";
 import { CodeCritic } from "@/components/ide/CodeCritic";
 import { PromptMarketplace } from "@/components/ide/PromptMarketplace";
+import { AgentTrainer } from "@/components/ide/AgentTrainer";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -78,10 +79,11 @@ import {
   Package,
   Store,
   ScanEye,
+  GraduationCap,
 } from "lucide-react";
 
 // ─── Types ──────────────────────────────────────────────────────
-type MobileTab = "files" | "editor" | "preview" | "chat" | "agents" | "suggestions" | "git" | "search" | "costs" | "terminal" | "memory" | "timeline" | "context" | "activity" | "architect" | "tests" | "debate" | "deps" | "critic" | "prompts";
+type MobileTab = "files" | "editor" | "preview" | "chat" | "agents" | "suggestions" | "git" | "search" | "costs" | "terminal" | "memory" | "timeline" | "context" | "activity" | "architect" | "tests" | "debate" | "deps" | "critic" | "prompts" | "trainer";
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false);
@@ -136,6 +138,7 @@ export default function IDEPage() {
   const [showDeps, setShowDeps] = useState(false);
   const [showCritic, setShowCritic] = useState(false);
   const [showPromptMarket, setShowPromptMarket] = useState(false);
+  const [showTrainer, setShowTrainer] = useState(false);
   const { settings: editorSettings, updateSettings } = useEditorSettings();
 
   // Auto-fix loop state
@@ -324,6 +327,7 @@ export default function IDEPage() {
     { id: "deps", label: "Deps", icon: Package, desc: "Dependency scanner & optimization" },
     { id: "critic", label: "Critic", icon: ScanEye, desc: "AI code review with grades" },
     { id: "prompts", label: "Prompts", icon: Store, desc: "Browse prompt marketplace" },
+    { id: "trainer", label: "Trainer", icon: GraduationCap, desc: "Train & customize your agents" },
     { id: "activity", label: "Activity", icon: Activity, desc: "Global activity log" },
     { id: "git", label: "Git", icon: GitBranch, desc: "GitHub sync and version control" },
     { id: "costs", label: "Costs", icon: DollarSign, desc: "AI usage and cost tracking" },
@@ -459,6 +463,9 @@ export default function IDEPage() {
           )}
           {mobileTab === "prompts" && (
             <PromptMarketplace onUsePrompt={handleSendPrompt} />
+          )}
+          {mobileTab === "trainer" && (
+            <AgentTrainer projectId={activeProjectId} />
           )}
           {mobileTab === "activity" && (
             <ActivityLog />
@@ -634,6 +641,8 @@ export default function IDEPage() {
         onToggleCritic={() => setShowCritic(!showCritic)}
         showPromptMarket={showPromptMarket}
         onTogglePromptMarket={() => setShowPromptMarket(!showPromptMarket)}
+        showTrainer={showTrainer}
+        onToggleTrainer={() => setShowTrainer(!showTrainer)}
         githubConnected={githubSettings?.connected || false}
         isMobile={false}
         onOpenCommandPalette={() => setShowCommandPalette(true)}
@@ -804,7 +813,7 @@ export default function IDEPage() {
           )}
 
           {/* Agent Activity / Git / Costs / Memory / Timeline / Context / Activity / Architect / Tests / Debate / Replay panel */}
-          {(showAgents || showGit || showCosts || showMemory || showTimeline || showContext || showActivity || showArchitect || showTests || showDebate || showDeps || showCritic || showPromptMarket) && (
+          {(showAgents || showGit || showCosts || showMemory || showTimeline || showContext || showActivity || showArchitect || showTests || showDebate || showDeps || showCritic || showPromptMarket || showTrainer) && (
             <>
               <ResizableHandle withHandle />
               <ResizablePanel defaultSize={18} minSize={14} maxSize={30}>
@@ -830,6 +839,8 @@ export default function IDEPage() {
                   <CodeCritic projectId={activeProjectId} activeFile={activeFileContent} />
                 ) : showPromptMarket ? (
                   <PromptMarketplace onUsePrompt={handleSendPrompt} />
+                ) : showTrainer ? (
+                  <AgentTrainer projectId={activeProjectId} />
                 ) : showContext ? (
                   <ContextWindow
                     projectId={activeProjectId}

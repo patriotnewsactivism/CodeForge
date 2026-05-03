@@ -64,6 +64,7 @@ import {
   Package,
   ScanEye,
   Store,
+  GraduationCap,
 } from "lucide-react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { GitHubConnectDialog } from "./GitHubConnectDialog";
@@ -134,6 +135,8 @@ interface TopBarProps {
   onToggleCritic?: () => void;
   showPromptMarket?: boolean;
   onTogglePromptMarket?: () => void;
+  showTrainer?: boolean;
+  onToggleTrainer?: () => void;
   githubConnected: boolean;
   isMobile?: boolean;
   onOpenCommandPalette?: () => void;
@@ -182,6 +185,8 @@ export function TopBar({
   onToggleCritic,
   showPromptMarket,
   onTogglePromptMarket,
+  showTrainer,
+  onToggleTrainer,
   githubConnected,
   isMobile = false,
   onOpenCommandPalette,
@@ -466,6 +471,7 @@ export function TopBar({
       <ToggleBtn active={showDeps} onClick={onToggleDeps} icon={Package} label="Deps" />
       <ToggleBtn active={showCritic} onClick={onToggleCritic} icon={ScanEye} label="Critic" />
       <ToggleBtn active={showPromptMarket} onClick={onTogglePromptMarket} icon={Store} label="Prompts" />
+      <ToggleBtn active={showTrainer} onClick={onToggleTrainer} icon={GraduationCap} label="Trainer" />
       <ToggleBtn active={showActivity} onClick={onToggleActivity} icon={ScrollText} label="Activity" />
 
       {/* Separator */}
