@@ -86,6 +86,29 @@ export const send = action({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
+    // ─── USAGE ENFORCEMENT ────────────────────────────────────────
+    const usageCheck = await ctx.runQuery(api.subscriptions.checkUsageAllowed, {
+      actionType: "ai_request",
+    });
+    if (!usageCheck.allowed) {
+      const blockedReply = `⚠️ *Usage Limit Reached*\n\n${usageCheck.reason}\n\nUpgrade your plan at /pricing for higher limits.`;
+      await ctx.runMutation(api.chat.saveMessage, {
+        sessionId: args.sessionId,
+        role: "user",
+        content: args.message,
+      });
+      await ctx.runMutation(api.chat.saveMessage, {
+        sessionId: args.sessionId,
+        role: "assistant",
+        content: blockedReply,
+      });
+      return {
+        response: blockedReply,
+        projectId: args.projectId as string,
+        mode: "chat" as const,
+      };
+    }
+
     // Save user message
     await ctx.runMutation(api.chat.saveMessage, {
       sessionId: args.sessionId,
@@ -103,6 +126,24 @@ export const send = action({
     const isCodeRequest = detectCodeIntent(args.message);
 
     if (isCodeRequest) {
+      // Check mission limit
+      const missionCheck = await ctx.runQuery(api.subscriptions.checkUsageAllowed, {
+        actionType: "mission",
+      });
+      if (!missionCheck.allowed) {
+        const blockedReply = `⚠️ *Mission Limit Reached*\n\n${missionCheck.reason}\n\nUpgrade your plan at /pricing for higher limits.`;
+        await ctx.runMutation(api.chat.saveMessage, {
+          sessionId: args.sessionId,
+          role: "assistant",
+          content: blockedReply,
+        });
+        return {
+          response: blockedReply,
+          projectId: projectId as string,
+          mode: "chat" as const,
+        };
+      }
+
       // 🧠 PROMPT EVOLVER: Enhance the prompt with past learnings
       let enhancedPrompt = args.message;
       try {
@@ -124,6 +165,13 @@ export const send = action({
         projectId,
         sessionId: args.sessionId,
         prompt: enhancedPrompt,
+      });
+
+      // Record mission launch usage
+      await ctx.runMutation(api.subscriptions.recordUsage, {
+        actionType: "mission",
+        tokensUsed: 0,
+        costCents: 0,
       });
 
       // Start the agent engine with the enhanced prompt
@@ -161,6 +209,13 @@ export const send = action({
     } else {
       // Simple chat — direct AI response (no tools)
       const response = await simpleChat(args.message, args.model || "deepseek-v3.2");
+
+      // Record usage
+      await ctx.runMutation(api.subscriptions.recordUsage, {
+        actionType: "ai_request",
+        tokensUsed: Math.ceil(response.length / 4) + Math.ceil(args.message.length / 4),
+        costCents: 1, // ~$0.01 per simple chat
+      });
 
       await ctx.runMutation(api.chat.saveMessage, {
         sessionId: args.sessionId,
