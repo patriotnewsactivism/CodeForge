@@ -3,27 +3,28 @@
  * CODEFORGE v2 — IDE PAGE
  * ═══════════════════════════════════════════════════════════════════
  *
- * Main IDE layout. Three panels:
- *  Left:   File Tree
- *  Center: Code Editor
- *  Right:  Chat + Agent Activity (tabbed)
+ * Main IDE layout with Monaco editor, live preview, diff view,
+ * agent activity, mission replay, and auto-fix loop.
  *
+ * Desktop: FileTree | Editor(+Preview) | Suggestions | Chat | AgentActivity/Git
  * Mobile: Bottom tab navigation between panels.
  */
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { FileTree } from "@/components/ide/FileTree";
 import { CodeEditor } from "@/components/ide/CodeEditor";
 import { ChatPanel } from "@/components/ide/ChatPanel";
 import { PreviewPanel } from "@/components/ide/PreviewPanel";
+import type { ConsoleError } from "@/components/ide/PreviewPanel";
 import { TopBar } from "@/components/ide/TopBar";
 import { CostBar } from "@/components/ide/CostBar";
 import { WelcomePanel } from "@/components/ide/WelcomePanel";
 import { SuggestionsPanel } from "@/components/ide/SuggestionsPanel";
 import { AgentActivityPanel } from "@/components/ide/AgentActivityPanel";
 import { GitPanel } from "@/components/ide/GitPanel";
+import { MissionReplay } from "@/components/ide/MissionReplay";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -77,6 +78,12 @@ export default function IDEPage() {
   const [mobileTab, setMobileTab] = useState<MobileTab>("chat");
   const [externalPrompt, setExternalPrompt] = useState<string | null>(null);
   const [activeMissionId, setActiveMissionId] = useState<Id<"missions"> | null>(null);
+  const [showReplay, setShowReplay] = useState(false);
+
+  // Auto-fix loop state
+  const autoFixTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [autoFixEnabled] = useState(true);
+  const lastErrorRef = useRef<string>("");
 
   // ─── Queries ────────────────────────────────────────────────────
   const activeProject = useQuery(
@@ -123,6 +130,35 @@ export default function IDEPage() {
       }).catch(console.error);
     }
   }, [activeSession, activeProjectId, createSession]);
+
+  // ─── Auto-Fix Loop ─────────────────────────────────────────────
+  const handlePreviewErrors = useCallback(
+    (errors: ConsoleError[]) => {
+      if (!autoFixEnabled || !activeProjectId || !activeSession) return;
+      if (errors.length === 0) return;
+
+      // Deduplicate: don't send the same error twice in a row
+      const errKey = errors.map((e) => e.message).join("|");
+      if (errKey === lastErrorRef.current) return;
+      lastErrorRef.current = errKey;
+
+      // Debounce: wait 3 seconds of no new errors before triggering fix
+      if (autoFixTimeoutRef.current) {
+        clearTimeout(autoFixTimeoutRef.current);
+      }
+      autoFixTimeoutRef.current = setTimeout(() => {
+        const errorSummary = errors
+          .slice(0, 5) // Max 5 errors to keep prompt reasonable
+          .map((e) => `• ${e.message}${e.line ? ` (line ${e.line})` : ""}`)
+          .join("\n");
+
+        const fixPrompt = `🔧 AUTO-FIX: The live preview is showing these errors:\n\n${errorSummary}\n\nPlease analyze and fix these errors in the project files. Make the minimal changes needed to resolve them.`;
+
+        setExternalPrompt(fixPrompt);
+      }, 3000);
+    },
+    [autoFixEnabled, activeProjectId, activeSession]
+  );
 
   // ─── Handlers ─────────────────────────────────────────────────
   const handleFileSelect = useCallback(
@@ -221,7 +257,10 @@ export default function IDEPage() {
             )
           )}
           {mobileTab === "preview" && (
-            <PreviewPanel files={allFilesForPreview || []} />
+            <PreviewPanel
+              files={allFilesForPreview || []}
+              onErrors={handlePreviewErrors}
+            />
           )}
           {mobileTab === "chat" && (
             <ChatPanel
@@ -235,10 +274,17 @@ export default function IDEPage() {
             />
           )}
           {mobileTab === "agents" && (
-            <AgentActivityPanel
-              missionId={activeMissionId}
-              projectId={activeProjectId}
-            />
+            showReplay ? (
+              <MissionReplay
+                missionId={activeMissionId}
+                onClose={() => setShowReplay(false)}
+              />
+            ) : (
+              <AgentActivityPanel
+                missionId={activeMissionId}
+                projectId={activeProjectId}
+              />
+            )
           )}
           {mobileTab === "suggestions" && (
             <SuggestionsPanel
@@ -330,7 +376,10 @@ export default function IDEPage() {
                 </ResizablePanel>
                 <ResizableHandle withHandle />
                 <ResizablePanel defaultSize={45}>
-                  <PreviewPanel files={allFilesForPreview || []} />
+                  <PreviewPanel
+                    files={allFilesForPreview || []}
+                    onErrors={handlePreviewErrors}
+                  />
                 </ResizablePanel>
               </ResizablePanelGroup>
             ) : activeFileId && activeFileContent ? (
@@ -381,12 +430,17 @@ export default function IDEPage() {
             </>
           )}
 
-          {/* Agent Activity / Git panel */}
+          {/* Agent Activity / Git / Replay panel */}
           {(showAgents || showGit) && (
             <>
               <ResizableHandle withHandle />
               <ResizablePanel defaultSize={18} minSize={14} maxSize={30}>
-                {showAgents && showGit ? (
+                {showReplay ? (
+                  <MissionReplay
+                    missionId={activeMissionId}
+                    onClose={() => setShowReplay(false)}
+                  />
+                ) : showAgents && showGit ? (
                   <ResizablePanelGroup direction="vertical">
                     <ResizablePanel defaultSize={60}>
                       <AgentActivityPanel

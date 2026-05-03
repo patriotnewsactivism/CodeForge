@@ -44,10 +44,12 @@ import {
   Menu,
   GitBranch,
   Activity,
+  Download,
 } from "lucide-react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { GitHubConnectDialog } from "./GitHubConnectDialog";
 import { ImportRepoDialog } from "./ImportRepoDialog";
+import { ExportButton } from "./ExportButton";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -317,6 +319,16 @@ export function TopBar({
           {activeProject.githubRepo}
         </Badge>
       )}
+
+      {/* Export */}
+      <ExportButton
+        projectId={activeProjectId}
+        projectName={activeProject?.name}
+        variant="ghost"
+        size="sm"
+        className="h-7 text-xs gap-1.5 text-white/40 hover:text-white/60"
+        showLabel
+      />
 
       {/* Separator */}
       <div className="h-4 w-px bg-white/10" />
