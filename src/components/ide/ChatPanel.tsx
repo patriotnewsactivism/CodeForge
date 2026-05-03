@@ -25,6 +25,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { QuickActions } from "./QuickActions";
 import {
   Send,
   Bot,
@@ -419,6 +420,15 @@ export function ChatPanel({
           )}
         </div>
       </div>
+
+      {/* Quick actions */}
+      <QuickActions
+        onAction={(prompt) => {
+          setInput(prompt);
+          setTimeout(() => handleSendWithMessage(prompt), 100);
+        }}
+        className="border-t border-white/5"
+      />
 
       {/* Input area */}
       <div className="border-t border-white/5 p-3 bg-white/[0.02]">
