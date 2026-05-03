@@ -43,6 +43,9 @@ import { MissionTimeline } from "@/components/ide/MissionTimeline";
 import { ContextWindow } from "@/components/ide/ContextWindow";
 import { ActivityLog } from "@/components/ide/ActivityLog";
 import { PerfMonitor } from "@/components/ide/PerfMonitor";
+import { ArchitectureAdvisor } from "@/components/ide/ArchitectureAdvisor";
+import { TestGenerator } from "@/components/ide/TestGenerator";
+import { AgentDebatePanel } from "@/components/ide/AgentDebatePanel";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -66,10 +69,13 @@ import {
   Eye,
   Brain,
   Clock,
+  Building2,
+  FlaskConical,
+  Scale,
 } from "lucide-react";
 
 // ─── Types ──────────────────────────────────────────────────────
-type MobileTab = "files" | "editor" | "preview" | "chat" | "agents" | "suggestions" | "git" | "search" | "costs" | "terminal" | "memory" | "timeline" | "context" | "activity";
+type MobileTab = "files" | "editor" | "preview" | "chat" | "agents" | "suggestions" | "git" | "search" | "costs" | "terminal" | "memory" | "timeline" | "context" | "activity" | "architect" | "tests" | "debate";
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false);
@@ -118,6 +124,9 @@ export default function IDEPage() {
   const [showTimeline, setShowTimeline] = useState(false);
   const [showContext, setShowContext] = useState(false);
   const [showActivity, setShowActivity] = useState(false);
+  const [showArchitect, setShowArchitect] = useState(false);
+  const [showTests, setShowTests] = useState(false);
+  const [showDebate, setShowDebate] = useState(false);
   const { settings: editorSettings, updateSettings } = useEditorSettings();
 
   // Auto-fix loop state
@@ -300,6 +309,9 @@ export default function IDEPage() {
     { id: "memory", label: "Memory", icon: Brain, desc: "Agent learnings and intelligence" },
     { id: "timeline", label: "History", icon: Clock, desc: "Mission history timeline" },
     { id: "context", label: "Context", icon: Eye, desc: "What the AI sees right now" },
+    { id: "architect", label: "Advisor", icon: Building2, desc: "Architecture analysis & insights" },
+    { id: "tests", label: "Tests", icon: FlaskConical, desc: "Auto-generate unit tests" },
+    { id: "debate", label: "Debate", icon: Scale, desc: "Watch agents discuss approach" },
     { id: "activity", label: "Activity", icon: Activity, desc: "Global activity log" },
     { id: "git", label: "Git", icon: GitBranch, desc: "GitHub sync and version control" },
     { id: "costs", label: "Costs", icon: DollarSign, desc: "AI usage and cost tracking" },
@@ -417,6 +429,15 @@ export default function IDEPage() {
               activeFileId={activeFileId}
               sessionId={activeSession?._id}
             />
+          )}
+          {mobileTab === "architect" && (
+            <ArchitectureAdvisor projectId={activeProjectId} />
+          )}
+          {mobileTab === "tests" && (
+            <TestGenerator projectId={activeProjectId} activeFile={activeFileContent} />
+          )}
+          {mobileTab === "debate" && (
+            <AgentDebatePanel projectId={activeProjectId} missionId={activeMissionId} />
           )}
           {mobileTab === "activity" && (
             <ActivityLog />
@@ -580,6 +601,12 @@ export default function IDEPage() {
         onToggleContext={() => setShowContext(!showContext)}
         showActivity={showActivity}
         onToggleActivity={() => setShowActivity(!showActivity)}
+        showArchitect={showArchitect}
+        onToggleArchitect={() => setShowArchitect(!showArchitect)}
+        showTests={showTests}
+        onToggleTests={() => setShowTests(!showTests)}
+        showDebate={showDebate}
+        onToggleDebate={() => setShowDebate(!showDebate)}
         githubConnected={githubSettings?.connected || false}
         isMobile={false}
         onOpenCommandPalette={() => setShowCommandPalette(true)}
@@ -749,8 +776,8 @@ export default function IDEPage() {
             </>
           )}
 
-          {/* Agent Activity / Git / Costs / Memory / Timeline / Context / Activity / Replay panel */}
-          {(showAgents || showGit || showCosts || showMemory || showTimeline || showContext || showActivity) && (
+          {/* Agent Activity / Git / Costs / Memory / Timeline / Context / Activity / Architect / Tests / Debate / Replay panel */}
+          {(showAgents || showGit || showCosts || showMemory || showTimeline || showContext || showActivity || showArchitect || showTests || showDebate) && (
             <>
               <ResizableHandle withHandle />
               <ResizablePanel defaultSize={18} minSize={14} maxSize={30}>
@@ -764,6 +791,12 @@ export default function IDEPage() {
                     projectId={activeProjectId}
                     sessionId={activeSession?._id}
                   />
+                ) : showArchitect ? (
+                  <ArchitectureAdvisor projectId={activeProjectId} />
+                ) : showTests ? (
+                  <TestGenerator projectId={activeProjectId} activeFile={activeFileContent} />
+                ) : showDebate ? (
+                  <AgentDebatePanel projectId={activeProjectId} missionId={activeMissionId} />
                 ) : showContext ? (
                   <ContextWindow
                     projectId={activeProjectId}

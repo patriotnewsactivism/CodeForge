@@ -224,3 +224,33 @@ export const getMissionTimeline = query({
     return timeline;
   },
 });
+
+// ─── Agent Messages (for Debate Panel) ───────────────────────────
+
+export const listAgentMessages = query({
+  args: { missionId: v.id("missions") },
+  handler: async (ctx, args) => {
+    const msgs = await ctx.db
+      .query("agentMessages")
+      .withIndex("by_mission", (q) => q.eq("missionId", args.missionId))
+      .order("asc")
+      .take(100);
+
+    // Enrich with agent role info
+    const enriched = await Promise.all(
+      msgs.map(async (msg) => {
+        const fromAgent = await ctx.db.get(msg.fromAgentId);
+        const toAgent = msg.toAgentId ? await ctx.db.get(msg.toAgentId) : null;
+        return {
+          ...msg,
+          fromRole: fromAgent?.role ?? "worker",
+          fromTitle: fromAgent?.title ?? "Agent",
+          toRole: toAgent?.role ?? null,
+          toTitle: toAgent?.title ?? null,
+        };
+      })
+    );
+
+    return enriched;
+  },
+});

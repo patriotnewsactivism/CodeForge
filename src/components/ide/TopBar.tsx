@@ -58,6 +58,9 @@ import {
   Clock,
   Eye,
   ScrollText,
+  Building2,
+  FlaskConical,
+  Scale,
 } from "lucide-react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { GitHubConnectDialog } from "./GitHubConnectDialog";
@@ -116,6 +119,12 @@ interface TopBarProps {
   onToggleContext?: () => void;
   showActivity?: boolean;
   onToggleActivity?: () => void;
+  showArchitect?: boolean;
+  onToggleArchitect?: () => void;
+  showTests?: boolean;
+  onToggleTests?: () => void;
+  showDebate?: boolean;
+  onToggleDebate?: () => void;
   githubConnected: boolean;
   isMobile?: boolean;
   onOpenCommandPalette?: () => void;
@@ -152,6 +161,12 @@ export function TopBar({
   onToggleContext,
   showActivity,
   onToggleActivity,
+  showArchitect,
+  onToggleArchitect,
+  showTests,
+  onToggleTests,
+  showDebate,
+  onToggleDebate,
   githubConnected,
   isMobile = false,
   onOpenCommandPalette,
@@ -430,6 +445,9 @@ export function TopBar({
       <ToggleBtn active={showMemory} onClick={onToggleMemory} icon={Brain} label="Memory" />
       <ToggleBtn active={showTimeline} onClick={onToggleTimeline} icon={Clock} label="History" />
       <ToggleBtn active={showContext} onClick={onToggleContext} icon={Eye} label="Context" />
+      <ToggleBtn active={showArchitect} onClick={onToggleArchitect} icon={Building2} label="Advisor" />
+      <ToggleBtn active={showTests} onClick={onToggleTests} icon={FlaskConical} label="Tests" />
+      <ToggleBtn active={showDebate} onClick={onToggleDebate} icon={Scale} label="Debate" />
       <ToggleBtn active={showActivity} onClick={onToggleActivity} icon={ScrollText} label="Activity" />
 
       {/* Separator */}
