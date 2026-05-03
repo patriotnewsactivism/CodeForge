@@ -54,7 +54,7 @@ export function LiveDeployPreview({ projectId }: LiveDeployPreviewProps) {
   const [copied, setCopied] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  const project = useQuery(api.projects.get, projectId ? { id: projectId } : "skip");
+  const project = useQuery(api.projects.get, projectId ? { projectId } : "skip");
 
   // Derive deploy URL from project settings
   const deployUrl = customUrl || project?.settings?.railwayUrl || project?.settings?.deployUrl || "";

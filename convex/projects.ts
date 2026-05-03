@@ -26,6 +26,7 @@ export const create = mutation({
     name: v.string(),
     description: v.optional(v.string()),
     githubRepo: v.optional(v.string()),
+    githubBranch: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);

@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { PublicLayout } from "./components/PublicLayout";
@@ -7,6 +7,12 @@ import { Toaster } from "./components/ui/sonner";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { LandingPage, LoginPage, SignupPage } from "./pages";
 import IDEPage from "./pages/IDEPage";
+import { PricingPage } from "./pages/PricingPage";
+
+function PricingPageWrapper() {
+  const navigate = useNavigate();
+  return <PricingPage onBack={() => navigate("/ide")} />;
+}
 
 function App() {
   return (
@@ -24,6 +30,7 @@ function App() {
 
           <Route element={<ProtectedRoute />}>
             <Route path="/ide" element={<IDEPage />} />
+            <Route path="/pricing" element={<PricingPageWrapper />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />

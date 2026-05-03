@@ -292,6 +292,72 @@ const schema = defineSchema({
     operation: v.string(),
   })
     .index("by_user", ["userId"]),
+
+  // ═══════════════════════════════════════════════════════════════
+  // SUBSCRIPTION & USAGE CONTROL
+  // ═══════════════════════════════════════════════════════════════
+
+  // ─── Subscriptions — Active plan for each user ──────────────────
+  subscriptions: defineTable({
+    userId: v.id("users"),
+    plan: v.union(
+      v.literal("free"),
+      v.literal("weekly"),
+      v.literal("monthly"),
+      v.literal("lifetime"),
+    ),
+    status: v.union(
+      v.literal("active"),
+      v.literal("cancelled"),
+      v.literal("expired"),
+      v.literal("past_due"),
+    ),
+    // Limits (set from plan defaults, can be overridden)
+    maxAiRequestsPerDay: v.number(),       // Daily AI call cap
+    maxAiRequestsPerHour: v.number(),      // Hourly burst cap
+    maxMissionsPerDay: v.number(),          // Daily mission cap
+    maxConcurrentAgents: v.number(),        // Parallel agent limit
+    maxProjectFiles: v.number(),            // Files per project
+    maxProjects: v.number(),               // Total projects
+    monthlyComputeBudgetCents: v.number(), // Hard spend cap in cents
+    // Stripe
+    stripeCustomerId: v.optional(v.string()),
+    stripeSubscriptionId: v.optional(v.string()),
+    // Dates
+    currentPeriodStart: v.number(),
+    currentPeriodEnd: v.number(),          // When to reset usage
+    createdAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_stripe_customer", ["stripeCustomerId"])
+    .index("by_stripe_subscription", ["stripeSubscriptionId"]),
+
+  // ─── Usage Tracking — Rolling usage counters ────────────────────
+  usageRecords: defineTable({
+    userId: v.id("users"),
+    periodKey: v.string(),                  // "2026-05-03" for daily, "2026-05-03T10" for hourly
+    periodType: v.union(v.literal("daily"), v.literal("hourly")),
+    aiRequests: v.number(),
+    missionsLaunched: v.number(),
+    agentsSpawned: v.number(),
+    tokensUsed: v.number(),
+    computeCostCents: v.number(),           // Accumulated cost this period
+  })
+    .index("by_user_period", ["userId", "periodType", "periodKey"]),
+
+  // ─── Rate Limit Events — Track throttle/block events ────────────
+  rateLimitEvents: defineTable({
+    userId: v.id("users"),
+    eventType: v.union(
+      v.literal("throttled"),
+      v.literal("blocked"),
+      v.literal("budget_warning"),
+      v.literal("budget_exceeded"),
+    ),
+    reason: v.string(),
+    timestamp: v.number(),
+  })
+    .index("by_user", ["userId"]),
 });
 
 export default schema;

@@ -9,6 +9,7 @@
  *  - Command palette, Deploy, Env, Templates, GitHub, Export
  */
 import type { Id } from "../../../convex/_generated/dataModel";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -71,6 +72,8 @@ import {
   Wand2,
   Mic,
   Radio,
+  Crown,
+  Palette,
 } from "lucide-react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { GitHubConnectDialog } from "./GitHubConnectDialog";
@@ -155,6 +158,8 @@ interface TopBarProps {
   onToggleVoiceApp?: () => void;
   showApiTester?: boolean;
   onToggleApiTester?: () => void;
+  showThemes?: boolean;
+  onToggleThemes?: () => void;
   githubConnected: boolean;
   isMobile?: boolean;
   onOpenCommandPalette?: () => void;
@@ -217,12 +222,15 @@ export function TopBar({
   onToggleVoiceApp,
   showApiTester,
   onToggleApiTester,
+  showThemes,
+  onToggleThemes,
   githubConnected,
   isMobile = false,
   onOpenCommandPalette,
   onOpenSettings,
   onSendPrompt,
 }: TopBarProps) {
+  const navigate = useNavigate();
   const [showNewProject, setShowNewProject] = useState(false);
   const [showGitHub, setShowGitHub] = useState(false);
   const [showImport, setShowImport] = useState(false);
@@ -470,6 +478,16 @@ export function TopBar({
         <Key className="h-3.5 w-3.5" />
       </Button>
 
+      {/* Pricing */}
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-7 text-xs gap-1 bg-gradient-to-r from-purple-500/10 to-amber-500/10 text-purple-300 hover:text-purple-200 border border-purple-500/20"
+        onClick={() => navigate("/pricing")}
+      >
+        <Crown className="h-3 w-3" /> Upgrade
+      </Button>
+
       {/* Export */}
       <ExportButton
         projectId={activeProjectId}
@@ -508,6 +526,7 @@ export function TopBar({
       <ToggleBtn active={showRefactor} onClick={onToggleRefactor} icon={Wand2} label="Refactor" />
       <ToggleBtn active={showVoiceApp} onClick={onToggleVoiceApp} icon={Mic} label="Voice" />
       <ToggleBtn active={showApiTester} onClick={onToggleApiTester} icon={Radio} label="API" />
+      <ToggleBtn active={showThemes} onClick={onToggleThemes} icon={Palette} label="Themes" />
       <ToggleBtn active={showActivity} onClick={onToggleActivity} icon={ScrollText} label="Activity" />
 
       {/* Separator */}
