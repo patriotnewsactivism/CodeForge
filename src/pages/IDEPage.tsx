@@ -4,7 +4,8 @@
  * ═══════════════════════════════════════════════════════════════════
  *
  * Main IDE layout with Monaco editor, live preview, diff view,
- * agent activity, mission replay, and auto-fix loop.
+ * agent activity, mission replay, auto-fix loop, command palette,
+ * workspace search, cost dashboard, deploy, env manager.
  *
  * Desktop: FileTree | Editor(+Preview) | Suggestions | Chat | AgentActivity/Git
  * Mobile: Bottom tab navigation between panels.
@@ -25,6 +26,10 @@ import { SuggestionsPanel } from "@/components/ide/SuggestionsPanel";
 import { AgentActivityPanel } from "@/components/ide/AgentActivityPanel";
 import { GitPanel } from "@/components/ide/GitPanel";
 import { MissionReplay } from "@/components/ide/MissionReplay";
+import { CommandPalette } from "@/components/ide/CommandPalette";
+import { SearchPanel } from "@/components/ide/SearchPanel";
+import { CostDashboard } from "@/components/ide/CostDashboard";
+import { KeyboardShortcuts } from "@/components/ide/KeyboardShortcuts";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -39,10 +44,12 @@ import {
   Lightbulb,
   Activity,
   GitBranch,
+  Search,
+  DollarSign,
 } from "lucide-react";
 
 // ─── Types ──────────────────────────────────────────────────────
-type MobileTab = "files" | "editor" | "preview" | "chat" | "agents" | "suggestions" | "git";
+type MobileTab = "files" | "editor" | "preview" | "chat" | "agents" | "suggestions" | "git" | "search" | "costs";
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false);
@@ -75,10 +82,16 @@ export default function IDEPage() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [showAgents, setShowAgents] = useState(false);
   const [showGit, setShowGit] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+  const [showCosts, setShowCosts] = useState(false);
   const [mobileTab, setMobileTab] = useState<MobileTab>("chat");
   const [externalPrompt, setExternalPrompt] = useState<string | null>(null);
   const [activeMissionId, setActiveMissionId] = useState<Id<"missions"> | null>(null);
   const [showReplay, setShowReplay] = useState(false);
+
+  // Command palette & shortcuts
+  const [showCommandPalette, setShowCommandPalette] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
 
   // Auto-fix loop state
   const autoFixTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -131,24 +144,40 @@ export default function IDEPage() {
     }
   }, [activeSession, activeProjectId, createSession]);
 
+  // Global keyboard shortcuts
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      // Ctrl+Shift+F → Search
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === "F") {
+        e.preventDefault();
+        setShowSearch((v) => !v);
+      }
+      // ? → Shortcuts (only when not focused on input)
+      if (e.key === "?" && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement)) {
+        e.preventDefault();
+        setShowShortcuts(true);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+
   // ─── Auto-Fix Loop ─────────────────────────────────────────────
   const handlePreviewErrors = useCallback(
     (errors: ConsoleError[]) => {
       if (!autoFixEnabled || !activeProjectId || !activeSession) return;
       if (errors.length === 0) return;
 
-      // Deduplicate: don't send the same error twice in a row
       const errKey = errors.map((e) => e.message).join("|");
       if (errKey === lastErrorRef.current) return;
       lastErrorRef.current = errKey;
 
-      // Debounce: wait 3 seconds of no new errors before triggering fix
       if (autoFixTimeoutRef.current) {
         clearTimeout(autoFixTimeoutRef.current);
       }
       autoFixTimeoutRef.current = setTimeout(() => {
         const errorSummary = errors
-          .slice(0, 5) // Max 5 errors to keep prompt reasonable
+          .slice(0, 5)
           .map((e) => `• ${e.message}${e.line ? ` (line ${e.line})` : ""}`)
           .join("\n");
 
@@ -162,11 +191,12 @@ export default function IDEPage() {
 
   // ─── Handlers ─────────────────────────────────────────────────
   const handleFileSelect = useCallback(
-    (fileId: Id<"files">, name: string, path: string) => {
-      setActiveFileId(fileId);
+    (fileId: Id<"files"> | string, name: string, path: string) => {
+      const typedId = fileId as Id<"files">;
+      setActiveFileId(typedId);
       setOpenTabs((prev) => {
-        if (prev.find((t) => t.id === fileId)) return prev;
-        return [...prev, { id: fileId, name, path }];
+        if (prev.find((t) => t.id === typedId)) return prev;
+        return [...prev, { id: typedId, name, path }];
       });
       if (window.innerWidth < 768) setMobileTab("editor");
     },
@@ -204,6 +234,12 @@ export default function IDEPage() {
     createProject({ name: "New Project" }).then((id) => setActiveProjectId(id));
   }, [createProject]);
 
+  const handleSendPrompt = useCallback((prompt: string) => {
+    setExternalPrompt(prompt);
+    setShowChat(true);
+    if (window.innerWidth < 768) setMobileTab("chat");
+  }, []);
+
   // ─── Mobile Tabs ──────────────────────────────────────────────
   const MOBILE_TABS: { id: MobileTab; label: string; icon: typeof FolderTree }[] = [
     { id: "files", label: "Files", icon: FolderTree },
@@ -211,8 +247,10 @@ export default function IDEPage() {
     { id: "chat", label: "AI", icon: MessageSquare },
     { id: "agents", label: "Agents", icon: Activity },
     { id: "preview", label: "Preview", icon: Play },
+    { id: "search", label: "Search", icon: Search },
     { id: "suggestions", label: "Ideas", icon: Lightbulb },
     { id: "git", label: "Git", icon: GitBranch },
+    { id: "costs", label: "Costs", icon: DollarSign },
   ];
 
   // ─── MOBILE LAYOUT ───────────────────────────────────────────
@@ -292,8 +330,17 @@ export default function IDEPage() {
               onExecuteSuggestion={handleExecuteSuggestion}
             />
           )}
+          {mobileTab === "search" && (
+            <SearchPanel
+              projectId={activeProjectId}
+              onFileSelect={handleFileSelect}
+            />
+          )}
           {mobileTab === "git" && (
             <GitPanel projectId={activeProjectId} />
+          )}
+          {mobileTab === "costs" && (
+            <CostDashboard projectId={activeProjectId} />
           )}
         </div>
 
@@ -313,6 +360,19 @@ export default function IDEPage() {
             </button>
           ))}
         </div>
+
+        {/* Command Palette */}
+        <CommandPalette
+          open={showCommandPalette}
+          onOpenChange={setShowCommandPalette}
+          files={(files || []).map((f) => ({ _id: f._id as string, name: f.name, path: f.path }))}
+          onFileSelect={handleFileSelect}
+          onToggleChat={() => setShowChat(!showChat)}
+          onTogglePreview={() => setShowPreview(!showPreview)}
+          onNewProject={handleCreateProject}
+          onSendPrompt={handleSendPrompt}
+        />
+        <KeyboardShortcuts open={showShortcuts} onOpenChange={setShowShortcuts} />
       </div>
     );
   }
@@ -335,20 +395,33 @@ export default function IDEPage() {
         onToggleAgents={() => setShowAgents(!showAgents)}
         showGit={showGit}
         onToggleGit={() => setShowGit(!showGit)}
+        showSearch={showSearch}
+        onToggleSearch={() => setShowSearch(!showSearch)}
+        showCosts={showCosts}
+        onToggleCosts={() => setShowCosts(!showCosts)}
         githubConnected={githubSettings?.connected || false}
         isMobile={false}
+        onOpenCommandPalette={() => setShowCommandPalette(true)}
+        onSendPrompt={handleSendPrompt}
       />
 
       <div className="flex-1 overflow-hidden">
         <ResizablePanelGroup direction="horizontal">
-          {/* File Tree */}
+          {/* File Tree or Search */}
           <ResizablePanel defaultSize={16} minSize={12} maxSize={25}>
-            <FileTree
-              files={files || []}
-              activeFileId={activeFileId}
-              onFileSelect={handleFileSelect}
-              projectId={activeProjectId}
-            />
+            {showSearch ? (
+              <SearchPanel
+                projectId={activeProjectId}
+                onFileSelect={handleFileSelect}
+              />
+            ) : (
+              <FileTree
+                files={files || []}
+                activeFileId={activeFileId}
+                onFileSelect={handleFileSelect}
+                projectId={activeProjectId}
+              />
+            )}
           </ResizablePanel>
 
           <ResizableHandle withHandle />
@@ -430,8 +503,8 @@ export default function IDEPage() {
             </>
           )}
 
-          {/* Agent Activity / Git / Replay panel */}
-          {(showAgents || showGit) && (
+          {/* Agent Activity / Git / Costs / Replay panel */}
+          {(showAgents || showGit || showCosts) && (
             <>
               <ResizableHandle withHandle />
               <ResizablePanel defaultSize={18} minSize={14} maxSize={30}>
@@ -439,6 +512,11 @@ export default function IDEPage() {
                   <MissionReplay
                     missionId={activeMissionId}
                     onClose={() => setShowReplay(false)}
+                  />
+                ) : showCosts ? (
+                  <CostDashboard
+                    projectId={activeProjectId}
+                    sessionId={activeSession?._id}
                   />
                 ) : showAgents && showGit ? (
                   <ResizablePanelGroup direction="vertical">
@@ -468,6 +546,22 @@ export default function IDEPage() {
       </div>
 
       <CostBar session={activeSession} />
+
+      {/* Overlays */}
+      <CommandPalette
+        open={showCommandPalette}
+        onOpenChange={setShowCommandPalette}
+        files={(files || []).map((f) => ({ _id: f._id as string, name: f.name, path: f.path }))}
+        onFileSelect={handleFileSelect}
+        onToggleChat={() => setShowChat(!showChat)}
+        onTogglePreview={() => setShowPreview(!showPreview)}
+        onToggleAgents={() => setShowAgents(!showAgents)}
+        onToggleGit={() => setShowGit(!showGit)}
+        onToggleSuggestions={() => setShowSuggestions(!showSuggestions)}
+        onNewProject={handleCreateProject}
+        onSendPrompt={handleSendPrompt}
+      />
+      <KeyboardShortcuts open={showShortcuts} onOpenChange={setShowShortcuts} />
     </div>
   );
 }

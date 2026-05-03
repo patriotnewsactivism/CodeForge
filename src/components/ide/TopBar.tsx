@@ -5,8 +5,8 @@
  *
  * Clean navigation bar with:
  *  - Logo + project selector
- *  - Panel toggle buttons (Chat, Preview, Suggestions, Agents, Git)
- *  - GitHub + Settings
+ *  - Panel toggle buttons
+ *  - Command palette, Deploy, Env, Templates, GitHub, Export
  */
 import type { Id } from "../../../convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
@@ -38,20 +38,26 @@ import {
   Lightbulb,
   MessageSquare,
   Plus,
-  Settings,
   LogOut,
   Play,
   Menu,
   GitBranch,
   Activity,
-  Download,
   Sparkles,
+  Search,
+  DollarSign,
+  Rocket,
+  Key,
+  Command,
+  Keyboard,
 } from "lucide-react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { GitHubConnectDialog } from "./GitHubConnectDialog";
 import { ImportRepoDialog } from "./ImportRepoDialog";
 import { ExportButton } from "./ExportButton";
 import { TemplateMarketplace } from "./TemplateMarketplace";
+import { DeployPanel } from "./DeployPanel";
+import { EnvManager } from "./EnvManager";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -83,8 +89,14 @@ interface TopBarProps {
   onToggleAgents?: () => void;
   showGit?: boolean;
   onToggleGit?: () => void;
+  showSearch?: boolean;
+  onToggleSearch?: () => void;
+  showCosts?: boolean;
+  onToggleCosts?: () => void;
   githubConnected: boolean;
   isMobile?: boolean;
+  onOpenCommandPalette?: () => void;
+  onSendPrompt?: (prompt: string) => void;
 }
 
 export function TopBar({
@@ -102,13 +114,21 @@ export function TopBar({
   onToggleAgents,
   showGit,
   onToggleGit,
+  showSearch,
+  onToggleSearch,
+  showCosts,
+  onToggleCosts,
   githubConnected,
   isMobile = false,
+  onOpenCommandPalette,
+  onSendPrompt,
 }: TopBarProps) {
   const [showNewProject, setShowNewProject] = useState(false);
   const [showGitHub, setShowGitHub] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
+  const [showDeploy, setShowDeploy] = useState(false);
+  const [showEnv, setShowEnv] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
   const createProject = useMutation(api.projects.create);
   const { signOut } = useAuthActions();
@@ -191,10 +211,19 @@ export function TopBar({
               <Menu className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
+          <DropdownMenuContent align="end" className="w-52">
             <DropdownMenuItem onClick={() => setShowNewProject(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              New Project
+              <Plus className="h-4 w-4 mr-2" /> New Project
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setShowTemplates(true)}>
+              <Sparkles className="h-4 w-4 mr-2" /> Templates
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setShowDeploy(true)}>
+              <Rocket className="h-4 w-4 mr-2" /> Deploy
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => setShowEnv(true)}>
+              <Key className="h-4 w-4 mr-2" /> Environment Variables
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() =>
@@ -204,25 +233,16 @@ export function TopBar({
               <Github className="h-4 w-4 mr-2" />
               {githubConnected ? "Import Repo" : "Connect GitHub"}
             </DropdownMenuItem>
-            {githubConnected && (
-              <DropdownMenuItem onClick={() => setShowGitHub(true)}>
-                <Settings className="h-4 w-4 mr-2" />
-                GitHub Settings
-              </DropdownMenuItem>
-            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => signOut()}>
-              <LogOut className="h-4 w-4 mr-2" />
-              Sign Out
+              <LogOut className="h-4 w-4 mr-2" /> Sign Out
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
 
         <Dialog open={showNewProject} onOpenChange={setShowNewProject}>
           <DialogContent>
-            <DialogHeader>
-              <DialogTitle>New Project</DialogTitle>
-            </DialogHeader>
+            <DialogHeader><DialogTitle>New Project</DialogTitle></DialogHeader>
             <div className="flex gap-2">
               <Input
                 placeholder="Project name..."
@@ -236,19 +256,17 @@ export function TopBar({
         </Dialog>
 
         <GitHubConnectDialog open={showGitHub} onOpenChange={setShowGitHub} />
-        <ImportRepoDialog
-          open={showImport}
-          onOpenChange={setShowImport}
-          activeProjectId={activeProjectId}
-          onSelectProject={onSelectProject}
-        />
+        <ImportRepoDialog open={showImport} onOpenChange={setShowImport} activeProjectId={activeProjectId} onSelectProject={onSelectProject} />
+        <TemplateMarketplace open={showTemplates} onOpenChange={setShowTemplates} onSelectProject={onSelectProject} />
+        <DeployPanel open={showDeploy} onOpenChange={setShowDeploy} projectId={activeProjectId} projectName={activeProject?.name} />
+        <EnvManager open={showEnv} onOpenChange={setShowEnv} projectId={activeProjectId} />
       </div>
     );
   }
 
   // ─── DESKTOP TOPBAR ─────────────────────────────────────────────
   return (
-    <div className="flex items-center gap-2 border-b border-white/5 bg-[#0a0a0f] px-3 py-1.5 h-11">
+    <div className="flex items-center gap-1.5 border-b border-white/5 bg-[#0a0a0f] px-3 py-1.5 h-11">
       {/* Logo */}
       <div className="flex items-center gap-1.5 mr-2">
         <Code2 className="h-5 w-5 text-emerald-400" />
@@ -260,7 +278,7 @@ export function TopBar({
         value={activeProjectId || ""}
         onValueChange={(v) => onSelectProject(v as Id<"projects">)}
       >
-        <SelectTrigger className="w-48 h-7 text-xs border-white/10 bg-white/5 text-white/80">
+        <SelectTrigger className="w-44 h-7 text-xs border-white/10 bg-white/5 text-white/80">
           <SelectValue placeholder="Select project..." />
         </SelectTrigger>
         <SelectContent>
@@ -288,9 +306,7 @@ export function TopBar({
           </Button>
         </DialogTrigger>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>New Project</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>New Project</DialogTitle></DialogHeader>
           <div className="flex gap-2">
             <Input
               placeholder="Project name..."
@@ -304,35 +320,38 @@ export function TopBar({
       </Dialog>
 
       {/* Templates */}
-      <Button
-        variant="ghost"
-        size="sm"
-        className="h-7 text-xs gap-1.5 text-white/40 hover:text-white/60"
-        onClick={() => setShowTemplates(true)}
-      >
-        <Sparkles className="h-3.5 w-3.5" />
-        Templates
+      <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-white/40 hover:text-white/60" onClick={() => setShowTemplates(true)}>
+        <Sparkles className="h-3.5 w-3.5" /> Templates
       </Button>
+
+      {/* Command Palette trigger */}
+      {onOpenCommandPalette && (
+        <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-white/30 hover:text-white/60" onClick={onOpenCommandPalette}>
+          <Command className="h-3 w-3" />
+          <span className="text-[10px] text-white/20 bg-white/5 px-1 rounded">⌘K</span>
+        </Button>
+      )}
 
       <div className="flex-1" />
 
       {/* GitHub */}
-      <Button
-        variant="ghost"
-        size="sm"
-        className="h-7 text-xs gap-1.5 text-white/40 hover:text-white/60"
-        onClick={() => (githubConnected ? setShowImport(true) : setShowGitHub(true))}
-      >
+      <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-white/40 hover:text-white/60"
+        onClick={() => (githubConnected ? setShowImport(true) : setShowGitHub(true))}>
         <Github className="h-3.5 w-3.5" />
         {githubConnected ? "Import" : "GitHub"}
       </Button>
 
-      {githubConnected && activeProject?.githubRepo && (
-        <Badge variant="outline" className="text-[10px] h-5 border-white/10 text-white/40">
-          <Github className="h-2.5 w-2.5 mr-1" />
-          {activeProject.githubRepo}
-        </Badge>
-      )}
+      {/* Deploy */}
+      <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-white/40 hover:text-white/60"
+        onClick={() => setShowDeploy(true)}>
+        <Rocket className="h-3.5 w-3.5" /> Deploy
+      </Button>
+
+      {/* Env */}
+      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-white/30 hover:text-white/60"
+        onClick={() => setShowEnv(true)} title="Environment Variables">
+        <Key className="h-3.5 w-3.5" />
+      </Button>
 
       {/* Export */}
       <ExportButton
@@ -340,46 +359,36 @@ export function TopBar({
         projectName={activeProject?.name}
         variant="ghost"
         size="sm"
-        className="h-7 text-xs gap-1.5 text-white/40 hover:text-white/60"
-        showLabel
+        className="h-7 text-xs gap-1 text-white/40 hover:text-white/60"
+        showLabel={false}
       />
 
       {/* Separator */}
-      <div className="h-4 w-px bg-white/10" />
+      <div className="h-4 w-px bg-white/10 mx-0.5" />
 
       {/* Panel toggles */}
+      <ToggleBtn active={showSearch} onClick={onToggleSearch} icon={Search} label="Search" />
       <ToggleBtn active={showPreview} onClick={onTogglePreview} icon={Play} label="Preview" />
       <ToggleBtn active={showSuggestions} onClick={onToggleSuggestions} icon={Lightbulb} label="Ideas" />
       <ToggleBtn active={showChat} onClick={onToggleChat} icon={MessageSquare} label="AI" />
       <ToggleBtn active={showAgents} onClick={onToggleAgents} icon={Activity} label="Agents" />
       <ToggleBtn active={showGit} onClick={onToggleGit} icon={GitBranch} label="Git" />
+      <ToggleBtn active={showCosts} onClick={onToggleCosts} icon={DollarSign} label="Costs" />
 
       {/* Separator */}
-      <div className="h-4 w-px bg-white/10" />
+      <div className="h-4 w-px bg-white/10 mx-0.5" />
 
       {/* Sign out */}
-      <Button
-        variant="ghost"
-        size="sm"
-        className="h-7 w-7 p-0 text-white/30 hover:text-white/60"
-        onClick={() => signOut()}
-      >
+      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-white/30 hover:text-white/60" onClick={() => signOut()}>
         <LogOut className="h-3.5 w-3.5" />
       </Button>
 
       {/* Dialogs */}
       <GitHubConnectDialog open={showGitHub} onOpenChange={setShowGitHub} />
-      <ImportRepoDialog
-        open={showImport}
-        onOpenChange={setShowImport}
-        activeProjectId={activeProjectId}
-        onSelectProject={onSelectProject}
-      />
-      <TemplateMarketplace
-        open={showTemplates}
-        onOpenChange={setShowTemplates}
-        onSelectProject={onSelectProject}
-      />
+      <ImportRepoDialog open={showImport} onOpenChange={setShowImport} activeProjectId={activeProjectId} onSelectProject={onSelectProject} />
+      <TemplateMarketplace open={showTemplates} onOpenChange={setShowTemplates} onSelectProject={onSelectProject} />
+      <DeployPanel open={showDeploy} onOpenChange={setShowDeploy} projectId={activeProjectId} projectName={activeProject?.name} />
+      <EnvManager open={showEnv} onOpenChange={setShowEnv} projectId={activeProjectId} />
     </div>
   );
 }
