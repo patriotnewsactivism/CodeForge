@@ -56,6 +56,7 @@ import { CollabHub } from "@/components/ide/CollabHub";
 import { AIRefactor } from "@/components/ide/AIRefactor";
 import { VoiceToApp } from "@/components/ide/VoiceToApp";
 import { APITester } from "@/components/ide/APITester";
+import { BranchManager } from "@/components/ide/BranchManager";
 import { ThemeEngine } from "@/components/ide/ThemeEngine";
 import {
   ResizableHandle,
@@ -97,7 +98,7 @@ import {
 } from "lucide-react";
 
 // ─── Types ──────────────────────────────────────────────────────
-type MobileTab = "files" | "editor" | "preview" | "chat" | "agents" | "suggestions" | "git" | "search" | "costs" | "terminal" | "memory" | "timeline" | "context" | "activity" | "architect" | "tests" | "debate" | "deps" | "critic" | "prompts" | "trainer" | "deploy" | "profiler" | "collab" | "refactor" | "voiceapp" | "apitester" | "themes";
+type MobileTab = "files" | "editor" | "preview" | "chat" | "agents" | "suggestions" | "git" | "search" | "costs" | "terminal" | "memory" | "timeline" | "context" | "activity" | "architect" | "tests" | "debate" | "deps" | "critic" | "prompts" | "trainer" | "deploy" | "profiler" | "collab" | "refactor" | "voiceapp" | "apitester" | "themes" | "branches";
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false);
@@ -160,6 +161,7 @@ export default function IDEPage() {
   const [showVoiceApp, setShowVoiceApp] = useState(false);
   const [showApiTester, setShowApiTester] = useState(false);
   const [showThemes, setShowThemes] = useState(false);
+  const [showBranches, setShowBranches] = useState(false);
   const { settings: editorSettings, updateSettings } = useEditorSettings();
 
   // Auto-fix loop state
@@ -356,6 +358,7 @@ export default function IDEPage() {
     { id: "voiceapp", label: "Voice→App", icon: Mic, desc: "Speak and build an app" },
     { id: "apitester", label: "API Test", icon: Radio, desc: "Built-in REST API tester" },
     { id: "themes", label: "Themes", icon: Palette, desc: "Customize IDE appearance" },
+    { id: "branches", label: "Branches", icon: GitBranch, desc: "Git branch manager" },
     { id: "activity", label: "Activity", icon: Activity, desc: "Global activity log" },
     { id: "git", label: "Git", icon: GitBranch, desc: "GitHub sync and version control" },
     { id: "costs", label: "Costs", icon: DollarSign, desc: "AI usage and cost tracking" },
@@ -515,6 +518,9 @@ export default function IDEPage() {
           )}
           {mobileTab === "themes" && (
             <ThemeEngine />
+          )}
+          {mobileTab === "branches" && (
+            <BranchManager projectId={activeProjectId} />
           )}
           {mobileTab === "activity" && (
             <ActivityLog />
@@ -876,7 +882,7 @@ export default function IDEPage() {
           )}
 
           {/* Agent Activity / Git / Costs / Memory / Timeline / Context / Activity / Architect / Tests / Debate / Replay panel */}
-          {(showAgents || showGit || showCosts || showMemory || showTimeline || showContext || showActivity || showArchitect || showTests || showDebate || showDeps || showCritic || showPromptMarket || showTrainer || showLiveDeploy || showProfiler || showCollab || showRefactor || showVoiceApp || showApiTester || showThemes) && (
+          {(showAgents || showGit || showCosts || showMemory || showTimeline || showContext || showActivity || showArchitect || showTests || showDebate || showDeps || showCritic || showPromptMarket || showTrainer || showLiveDeploy || showProfiler || showCollab || showRefactor || showVoiceApp || showApiTester || showThemes || showBranches) && (
             <>
               <ResizableHandle withHandle />
               <ResizablePanel defaultSize={18} minSize={14} maxSize={30}>
@@ -918,6 +924,8 @@ export default function IDEPage() {
                   <APITester />
                 ) : showThemes ? (
                   <ThemeEngine />
+                ) : showBranches ? (
+                  <BranchManager projectId={activeProjectId} />
                 ) : showContext ? (
                   <ContextWindow
                     projectId={activeProjectId}

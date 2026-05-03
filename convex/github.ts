@@ -437,3 +437,118 @@ export const commitFile = action({
     }
   },
 });
+
+// ─── Create a branch (for branch-per-mission) ──────────────────
+export const createBranch = action({
+  args: {
+    repo: v.string(),
+    branchName: v.string(),
+    fromBranch: v.optional(v.string()),
+  },
+  returns: v.object({
+    success: v.boolean(),
+    error: v.optional(v.string()),
+  }),
+  handler: async (ctx, { repo, branchName, fromBranch }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return { success: false, error: "Not authenticated" };
+
+    const settings = await ctx.runQuery(api.github.getTokenInternal, {});
+    if (!settings?.token) return { success: false, error: "No GitHub token" };
+
+    try {
+      // Get the SHA of the source branch
+      const srcBranch = fromBranch || "main";
+      const refResp = await githubFetch(
+        `/repos/${repo}/git/ref/heads/${srcBranch}`,
+        settings.token
+      );
+      if (!refResp.ok) {
+        return { success: false, error: `Source branch '${srcBranch}' not found` };
+      }
+      const refData = (await refResp.json()) as { object: { sha: string } };
+      const sha = refData.object.sha;
+
+      // Create the new branch
+      const createResp = await githubFetch(
+        `/repos/${repo}/git/refs`,
+        settings.token,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            ref: `refs/heads/${branchName}`,
+            sha,
+          }),
+        }
+      );
+
+      if (!createResp.ok) {
+        const text = await createResp.text();
+        if (text.includes("Reference already exists")) {
+          return { success: true }; // Branch already exists, that's fine
+        }
+        return { success: false, error: `Failed to create branch: ${text}` };
+      }
+
+      return { success: true };
+    } catch (e) {
+      return {
+        success: false,
+        error: e instanceof Error ? e.message : "Unknown error",
+      };
+    }
+  },
+});
+
+// ─── Create Pull Request ────────────────────────────────────────
+export const createPullRequest = action({
+  args: {
+    repo: v.string(),
+    title: v.string(),
+    body: v.optional(v.string()),
+    head: v.string(), // branch name
+    base: v.optional(v.string()), // defaults to "main"
+  },
+  returns: v.object({
+    success: v.boolean(),
+    prUrl: v.optional(v.string()),
+    prNumber: v.optional(v.number()),
+    error: v.optional(v.string()),
+  }),
+  handler: async (ctx, { repo, title, body, head, base }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return { success: false, error: "Not authenticated" };
+
+    const settings = await ctx.runQuery(api.github.getTokenInternal, {});
+    if (!settings?.token) return { success: false, error: "No GitHub token" };
+
+    try {
+      const resp = await githubFetch(`/repos/${repo}/pulls`, settings.token, {
+        method: "POST",
+        body: JSON.stringify({
+          title,
+          body: body || "",
+          head,
+          base: base || "main",
+        }),
+      });
+
+      if (!resp.ok) {
+        const text = await resp.text();
+        return { success: false, error: `PR creation failed: ${text}` };
+      }
+
+      const pr = (await resp.json()) as { html_url: string; number: number };
+      return {
+        success: true,
+        prUrl: pr.html_url,
+        prNumber: pr.number,
+      };
+    } catch (e) {
+      return {
+        success: false,
+        error: e instanceof Error ? e.message : "Unknown error",
+      };
+    }
+  },
+});
