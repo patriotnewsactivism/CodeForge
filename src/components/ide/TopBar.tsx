@@ -65,6 +65,9 @@ import {
   ScanEye,
   Store,
   GraduationCap,
+  Globe,
+  Gauge,
+  Users,
 } from "lucide-react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { GitHubConnectDialog } from "./GitHubConnectDialog";
@@ -137,6 +140,12 @@ interface TopBarProps {
   onTogglePromptMarket?: () => void;
   showTrainer?: boolean;
   onToggleTrainer?: () => void;
+  showLiveDeploy?: boolean;
+  onToggleLiveDeploy?: () => void;
+  showProfiler?: boolean;
+  onToggleProfiler?: () => void;
+  showCollab?: boolean;
+  onToggleCollab?: () => void;
   githubConnected: boolean;
   isMobile?: boolean;
   onOpenCommandPalette?: () => void;
@@ -187,6 +196,12 @@ export function TopBar({
   onTogglePromptMarket,
   showTrainer,
   onToggleTrainer,
+  showLiveDeploy,
+  onToggleLiveDeploy,
+  showProfiler,
+  onToggleProfiler,
+  showCollab,
+  onToggleCollab,
   githubConnected,
   isMobile = false,
   onOpenCommandPalette,
@@ -472,6 +487,9 @@ export function TopBar({
       <ToggleBtn active={showCritic} onClick={onToggleCritic} icon={ScanEye} label="Critic" />
       <ToggleBtn active={showPromptMarket} onClick={onTogglePromptMarket} icon={Store} label="Prompts" />
       <ToggleBtn active={showTrainer} onClick={onToggleTrainer} icon={GraduationCap} label="Trainer" />
+      <ToggleBtn active={showLiveDeploy} onClick={onToggleLiveDeploy} icon={Globe} label="Preview" />
+      <ToggleBtn active={showProfiler} onClick={onToggleProfiler} icon={Gauge} label="Profiler" />
+      <ToggleBtn active={showCollab} onClick={onToggleCollab} icon={Users} label="Collab" />
       <ToggleBtn active={showActivity} onClick={onToggleActivity} icon={ScrollText} label="Activity" />
 
       {/* Separator */}

@@ -50,6 +50,9 @@ import { DependencyScanner } from "@/components/ide/DependencyScanner";
 import { CodeCritic } from "@/components/ide/CodeCritic";
 import { PromptMarketplace } from "@/components/ide/PromptMarketplace";
 import { AgentTrainer } from "@/components/ide/AgentTrainer";
+import { LiveDeployPreview } from "@/components/ide/LiveDeployPreview";
+import { PerformanceProfiler } from "@/components/ide/PerformanceProfiler";
+import { CollabHub } from "@/components/ide/CollabHub";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -80,10 +83,13 @@ import {
   Store,
   ScanEye,
   GraduationCap,
+  Globe,
+  Gauge,
+  Users,
 } from "lucide-react";
 
 // ─── Types ──────────────────────────────────────────────────────
-type MobileTab = "files" | "editor" | "preview" | "chat" | "agents" | "suggestions" | "git" | "search" | "costs" | "terminal" | "memory" | "timeline" | "context" | "activity" | "architect" | "tests" | "debate" | "deps" | "critic" | "prompts" | "trainer";
+type MobileTab = "files" | "editor" | "preview" | "chat" | "agents" | "suggestions" | "git" | "search" | "costs" | "terminal" | "memory" | "timeline" | "context" | "activity" | "architect" | "tests" | "debate" | "deps" | "critic" | "prompts" | "trainer" | "deploy" | "profiler" | "collab";
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false);
@@ -139,6 +145,9 @@ export default function IDEPage() {
   const [showCritic, setShowCritic] = useState(false);
   const [showPromptMarket, setShowPromptMarket] = useState(false);
   const [showTrainer, setShowTrainer] = useState(false);
+  const [showLiveDeploy, setShowLiveDeploy] = useState(false);
+  const [showProfiler, setShowProfiler] = useState(false);
+  const [showCollab, setShowCollab] = useState(false);
   const { settings: editorSettings, updateSettings } = useEditorSettings();
 
   // Auto-fix loop state
@@ -328,6 +337,9 @@ export default function IDEPage() {
     { id: "critic", label: "Critic", icon: ScanEye, desc: "AI code review with grades" },
     { id: "prompts", label: "Prompts", icon: Store, desc: "Browse prompt marketplace" },
     { id: "trainer", label: "Trainer", icon: GraduationCap, desc: "Train & customize your agents" },
+    { id: "deploy", label: "Live Preview", icon: Globe, desc: "Preview your deployed app" },
+    { id: "profiler", label: "Profiler", icon: Gauge, desc: "Performance analysis & warnings" },
+    { id: "collab", label: "Collab", icon: Users, desc: "Real-time collaboration hub" },
     { id: "activity", label: "Activity", icon: Activity, desc: "Global activity log" },
     { id: "git", label: "Git", icon: GitBranch, desc: "GitHub sync and version control" },
     { id: "costs", label: "Costs", icon: DollarSign, desc: "AI usage and cost tracking" },
@@ -466,6 +478,15 @@ export default function IDEPage() {
           )}
           {mobileTab === "trainer" && (
             <AgentTrainer projectId={activeProjectId} />
+          )}
+          {mobileTab === "deploy" && (
+            <LiveDeployPreview projectId={activeProjectId} />
+          )}
+          {mobileTab === "profiler" && (
+            <PerformanceProfiler projectId={activeProjectId} />
+          )}
+          {mobileTab === "collab" && (
+            <CollabHub projectId={activeProjectId} sessionId={sessionId} />
           )}
           {mobileTab === "activity" && (
             <ActivityLog />
@@ -643,6 +664,12 @@ export default function IDEPage() {
         onTogglePromptMarket={() => setShowPromptMarket(!showPromptMarket)}
         showTrainer={showTrainer}
         onToggleTrainer={() => setShowTrainer(!showTrainer)}
+        showLiveDeploy={showLiveDeploy}
+        onToggleLiveDeploy={() => setShowLiveDeploy(!showLiveDeploy)}
+        showProfiler={showProfiler}
+        onToggleProfiler={() => setShowProfiler(!showProfiler)}
+        showCollab={showCollab}
+        onToggleCollab={() => setShowCollab(!showCollab)}
         githubConnected={githubSettings?.connected || false}
         isMobile={false}
         onOpenCommandPalette={() => setShowCommandPalette(true)}
@@ -813,7 +840,7 @@ export default function IDEPage() {
           )}
 
           {/* Agent Activity / Git / Costs / Memory / Timeline / Context / Activity / Architect / Tests / Debate / Replay panel */}
-          {(showAgents || showGit || showCosts || showMemory || showTimeline || showContext || showActivity || showArchitect || showTests || showDebate || showDeps || showCritic || showPromptMarket || showTrainer) && (
+          {(showAgents || showGit || showCosts || showMemory || showTimeline || showContext || showActivity || showArchitect || showTests || showDebate || showDeps || showCritic || showPromptMarket || showTrainer || showLiveDeploy || showProfiler || showCollab) && (
             <>
               <ResizableHandle withHandle />
               <ResizablePanel defaultSize={18} minSize={14} maxSize={30}>
@@ -841,6 +868,12 @@ export default function IDEPage() {
                   <PromptMarketplace onUsePrompt={handleSendPrompt} />
                 ) : showTrainer ? (
                   <AgentTrainer projectId={activeProjectId} />
+                ) : showLiveDeploy ? (
+                  <LiveDeployPreview projectId={activeProjectId} />
+                ) : showProfiler ? (
+                  <PerformanceProfiler projectId={activeProjectId} />
+                ) : showCollab ? (
+                  <CollabHub projectId={activeProjectId} sessionId={sessionId} />
                 ) : showContext ? (
                   <ContextWindow
                     projectId={activeProjectId}
