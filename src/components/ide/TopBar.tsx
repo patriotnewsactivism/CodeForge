@@ -45,11 +45,13 @@ import {
   GitBranch,
   Activity,
   Download,
+  Sparkles,
 } from "lucide-react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { GitHubConnectDialog } from "./GitHubConnectDialog";
 import { ImportRepoDialog } from "./ImportRepoDialog";
 import { ExportButton } from "./ExportButton";
+import { TemplateMarketplace } from "./TemplateMarketplace";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -106,6 +108,7 @@ export function TopBar({
   const [showNewProject, setShowNewProject] = useState(false);
   const [showGitHub, setShowGitHub] = useState(false);
   const [showImport, setShowImport] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
   const createProject = useMutation(api.projects.create);
   const { signOut } = useAuthActions();
@@ -300,6 +303,17 @@ export function TopBar({
         </DialogContent>
       </Dialog>
 
+      {/* Templates */}
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-7 text-xs gap-1.5 text-white/40 hover:text-white/60"
+        onClick={() => setShowTemplates(true)}
+      >
+        <Sparkles className="h-3.5 w-3.5" />
+        Templates
+      </Button>
+
       <div className="flex-1" />
 
       {/* GitHub */}
@@ -359,6 +373,11 @@ export function TopBar({
         open={showImport}
         onOpenChange={setShowImport}
         activeProjectId={activeProjectId}
+        onSelectProject={onSelectProject}
+      />
+      <TemplateMarketplace
+        open={showTemplates}
+        onOpenChange={setShowTemplates}
         onSelectProject={onSelectProject}
       />
     </div>
