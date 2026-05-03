@@ -62,6 +62,7 @@ import { TemplateMarketplace } from "./TemplateMarketplace";
 import { NotificationCenter } from "./NotificationCenter";
 import { CollaborationBar } from "./CollaborationBar";
 import { PromptLibrary } from "./PromptLibrary";
+import { VoiceInput } from "./VoiceInput";
 import { DeployPanel } from "./DeployPanel";
 import { EnvManager } from "./EnvManager";
 import {
@@ -359,6 +360,9 @@ export function TopBar({
         onClick={() => setShowDeploy(true)}>
         <Rocket className="h-3.5 w-3.5" /> Deploy
       </Button>
+
+      {/* Voice Input */}
+      <VoiceInput onTranscript={(text) => onSendPrompt?.(text)} />
 
       {/* Prompt Library */}
       <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-white/30 hover:text-white/60"
