@@ -103,24 +103,48 @@ export const send = action({
     const isCodeRequest = detectCodeIntent(args.message);
 
     if (isCodeRequest) {
+      // 🧠 PROMPT EVOLVER: Enhance the prompt with past learnings
+      let enhancedPrompt = args.message;
+      try {
+        enhancedPrompt = await ctx.runAction(
+          internal.promptEvolver.enhancePrompt,
+          {
+            projectId,
+            originalPrompt: args.message,
+            model: args.model || "deepseek-v3.2",
+          }
+        );
+      } catch {
+        // Enhancement is best-effort — proceed with original
+        enhancedPrompt = args.message;
+      }
+
       // Launch a full mission with the agent engine
       const missionId = await ctx.runMutation(api.chat.createMission, {
         projectId,
         sessionId: args.sessionId,
-        prompt: args.message,
+        prompt: enhancedPrompt,
       });
 
-      // Start the agent engine
+      // Start the agent engine with the enhanced prompt
       await ctx.scheduler.runAfter(0, internal.engine.launchMission, {
         missionId,
         projectId,
         sessionId: args.sessionId,
-        prompt: args.message,
+        prompt: enhancedPrompt,
         model: args.model || "deepseek-v3.2",
       });
 
+      // 📝 Schedule retrospective for after the mission completes
+      // (runs 30 seconds later to give agents time to finish)
+      await ctx.scheduler.runAfter(30000, internal.promptEvolver.runRetrospective, {
+        missionId,
+        projectId,
+      });
+
+      const wasEnhanced = enhancedPrompt !== args.message;
       // Save assistant message
-      const reply = `🚀 *Mission launched!* I'm working on this now.\n\nYou can watch the agents work in real-time in the Agent panel. I'll update you when it's complete.`;
+      const reply = `🚀 *Mission launched!* I'm working on this now.${wasEnhanced ? "\n\n🧠 _Prompt enhanced with learnings from past missions._" : ""}\n\nYou can watch the agents work in real-time in the Agent panel. I'll update you when it's complete.`;
       await ctx.runMutation(api.chat.saveMessage, {
         sessionId: args.sessionId,
         role: "assistant",

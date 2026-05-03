@@ -554,7 +554,7 @@ export const runAgentLoop = internalAction({
         projectId, limit: 5,
       });
       if (memories.length > 0) {
-        const memCtx = memories.map((m: { title: string; content: string }) => `• ${m.title}: ${m.content}`).join("\n");
+        const memCtx = memories.map((m: any) => `• ${m.title || m.category}: ${m.content}`).join("\n");
         conversationMessages[0].content += `\n\n🧠 Relevant memories from past missions:\n${memCtx}`;
       }
     } catch (e) {

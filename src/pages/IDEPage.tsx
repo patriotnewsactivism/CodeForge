@@ -56,6 +56,9 @@ import {
   DollarSign,
   Terminal,
   Settings,
+  MoreHorizontal,
+  X,
+  Eye,
 } from "lucide-react";
 
 // ─── Types ──────────────────────────────────────────────────────
@@ -254,18 +257,28 @@ export default function IDEPage() {
   }, []);
 
   // ─── Mobile Tabs ──────────────────────────────────────────────
-  const MOBILE_TABS: { id: MobileTab; label: string; icon: typeof FolderTree }[] = [
-    { id: "files", label: "Files", icon: FolderTree },
-    { id: "editor", label: "Code", icon: FileCode },
+  // Primary: 4 most-used tabs always visible
+  // Secondary: accessible from "More" drawer
+  const [showMoreDrawer, setShowMoreDrawer] = useState(false);
+
+  const PRIMARY_TABS: { id: MobileTab; label: string; icon: typeof FolderTree }[] = [
     { id: "chat", label: "AI", icon: MessageSquare },
+    { id: "editor", label: "Code", icon: FileCode },
+    { id: "files", label: "Files", icon: FolderTree },
     { id: "agents", label: "Agents", icon: Activity },
-    { id: "preview", label: "Preview", icon: Play },
-    { id: "search", label: "Search", icon: Search },
-    { id: "suggestions", label: "Ideas", icon: Lightbulb },
-    { id: "git", label: "Git", icon: GitBranch },
-    { id: "costs", label: "Costs", icon: DollarSign },
-    { id: "terminal", label: "Term", icon: Terminal },
   ];
+
+  const SECONDARY_TABS: { id: MobileTab; label: string; icon: typeof FolderTree; desc: string }[] = [
+    { id: "preview", label: "Preview", icon: Play, desc: "Live preview of your project" },
+    { id: "search", label: "Search", icon: Search, desc: "Search across all project files" },
+    { id: "suggestions", label: "Ideas", icon: Lightbulb, desc: "AI improvement suggestions" },
+    { id: "git", label: "Git", icon: GitBranch, desc: "GitHub sync and version control" },
+    { id: "costs", label: "Costs", icon: DollarSign, desc: "AI usage and cost tracking" },
+    { id: "terminal", label: "Terminal", icon: Terminal, desc: "Agent output and logs" },
+  ];
+
+  // Check if current tab is a secondary one (show it in nav bar instead of "More")
+  const isSecondaryActive = SECONDARY_TABS.some((t) => t.id === mobileTab);
 
   // ─── MOBILE LAYOUT ───────────────────────────────────────────
   if (isMobile) {
@@ -361,21 +374,113 @@ export default function IDEPage() {
           )}
         </div>
 
-        {/* Mobile bottom tabs */}
-        <div className="flex items-center border-t border-white/5 bg-[#0a0a0f] overflow-x-auto scrollbar-none">
-          {MOBILE_TABS.map((tab) => (
+        {/* "More" drawer overlay */}
+        {showMoreDrawer && (
+          <div className="absolute inset-0 z-50 flex flex-col justify-end">
+            {/* Backdrop */}
+            <div
+              className="flex-1 bg-black/60 backdrop-blur-sm"
+              onClick={() => setShowMoreDrawer(false)}
+            />
+            {/* Drawer */}
+            <div className="bg-[#0d0d14] border-t border-white/10 rounded-t-2xl p-4 pb-6 animate-in slide-in-from-bottom">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-semibold text-white/70">Tools & Panels</h3>
+                <button
+                  onClick={() => setShowMoreDrawer(false)}
+                  className="h-7 w-7 flex items-center justify-center rounded-full bg-white/5 text-white/40"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {SECONDARY_TABS.map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => {
+                      setMobileTab(tab.id);
+                      setShowMoreDrawer(false);
+                    }}
+                    className={cn(
+                      "flex flex-col items-center gap-1.5 p-3 rounded-xl transition-all",
+                      "border border-white/5 hover:border-white/10",
+                      mobileTab === tab.id
+                        ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+                        : "bg-white/[0.02] text-white/40 hover:text-white/60"
+                    )}
+                  >
+                    <tab.icon className="h-5 w-5" />
+                    <span className="text-[11px] font-medium">{tab.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Mobile bottom nav — clean 5-button layout */}
+        <div className="flex items-center justify-around border-t border-white/5 bg-[#0a0a0f]/95 backdrop-blur-md safe-bottom">
+          {PRIMARY_TABS.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setMobileTab(tab.id)}
+              onClick={() => {
+                setMobileTab(tab.id);
+                setShowMoreDrawer(false);
+              }}
               className={cn(
-                "flex-none min-w-[3.5rem] flex flex-col items-center gap-0.5 py-2 px-1.5 transition-colors",
-                mobileTab === tab.id ? "text-emerald-400" : "text-white/30"
+                "flex-1 flex flex-col items-center gap-0.5 py-2.5 transition-colors",
+                mobileTab === tab.id
+                  ? "text-emerald-400"
+                  : "text-white/30 active:text-white/50"
               )}
             >
-              <tab.icon className={cn("h-5 w-5", mobileTab === tab.id && "text-emerald-400")} />
-              <span className="text-[10px] font-medium">{tab.label}</span>
+              <tab.icon className="h-5 w-5" />
+              <span className="text-[9px] font-semibold tracking-wide uppercase">
+                {tab.label}
+              </span>
+              {/* Active indicator dot */}
+              {mobileTab === tab.id && (
+                <div className="h-1 w-1 rounded-full bg-emerald-400 mt-0.5" />
+              )}
             </button>
           ))}
+
+          {/* "More" button — or shows current secondary tab */}
+          <button
+            onClick={() => setShowMoreDrawer(!showMoreDrawer)}
+            className={cn(
+              "flex-1 flex flex-col items-center gap-0.5 py-2.5 transition-colors",
+              isSecondaryActive
+                ? "text-emerald-400"
+                : showMoreDrawer
+                ? "text-emerald-400"
+                : "text-white/30 active:text-white/50"
+            )}
+          >
+            {isSecondaryActive ? (
+              <>
+                {(() => {
+                  const activeTab = SECONDARY_TABS.find((t) => t.id === mobileTab);
+                  if (!activeTab) return <MoreHorizontal className="h-5 w-5" />;
+                  return <activeTab.icon className="h-5 w-5" />;
+                })()}
+                <span className="text-[9px] font-semibold tracking-wide uppercase">
+                  {SECONDARY_TABS.find((t) => t.id === mobileTab)?.label || "More"}
+                </span>
+                <div className="h-1 w-1 rounded-full bg-emerald-400 mt-0.5" />
+              </>
+            ) : (
+              <>
+                <MoreHorizontal className="h-5 w-5" />
+                <span className="text-[9px] font-semibold tracking-wide uppercase">
+                  More
+                </span>
+                {showMoreDrawer && (
+                  <div className="h-1 w-1 rounded-full bg-emerald-400 mt-0.5" />
+                )}
+              </>
+            )}
+          </button>
         </div>
 
         {/* Command Palette */}
