@@ -11,7 +11,7 @@
  * - Stripe checkout integration (ready)
  */
 import { useState } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -198,6 +198,20 @@ const PLANS: PlanConfig[] = [
 
 export function PricingPage({ onBack }: PricingPageProps) {
   const subscription = useQuery(api.subscriptions.getMySubscription);
+
+  // Handle return from Stripe checkout
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("success") === "1") {
+      const plan = params.get("plan") || "Pro";
+      toast.success("Payment successful! Welcome to " + plan + "!");
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+    if (params.get("cancelled") === "1") {
+      toast.info("Checkout cancelled — you can upgrade anytime.");
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
   const usage = useQuery(api.subscriptions.getMyUsage);
   const upgradePlan = useMutation(api.subscriptions.upgradePlan);
   const [upgrading, setUpgrading] = useState<PlanId | null>(null);
@@ -205,19 +219,28 @@ export function PricingPage({ onBack }: PricingPageProps) {
 
   const currentPlan = subscription?.plan || "free";
 
+  const createCheckout = useAction(api.subscriptions.createCheckoutSession);
+
   const handleUpgrade = async (planId: PlanId) => {
     if (planId === "free" || planId === currentPlan) return;
 
     setUpgrading(planId);
     try {
-      // TODO: Integrate Stripe checkout here
-      // For now, direct upgrade (will be replaced with Stripe flow)
-      await upgradePlan({ plan: planId });
-      toast.success(`Upgraded to ${PLANS.find((p) => p.id === planId)?.name}!`);
-    } catch (e) {
-      toast.error("Upgrade failed. Please try again.");
+      const result = await createCheckout({ plan: planId as "weekly" | "monthly" | "lifetime" });
+      if (result?.url) {
+        window.location.href = result.url;
+      } else {
+        throw new Error("No checkout URL returned");
+      }
+    } catch (e: any) {
+      const msg = e?.message || "Upgrade failed";
+      if (msg.includes("not configured") || msg.includes("STRIPE_SECRET_KEY")) {
+        toast.error("Payments not yet configured — add Stripe keys to Convex env vars");
+      } else {
+        toast.error(msg);
+      }
+      setUpgrading(null);
     }
-    setUpgrading(null);
   };
 
   return (

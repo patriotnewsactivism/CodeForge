@@ -92,3 +92,31 @@ export const addCost = mutation({
     });
   },
 });
+
+// ── Real presence: sessions active on a project in the last N ms ─
+export const listActiveByProject = query({
+  args: {
+    projectId: v.id("projects"),
+    sinceMs: v.optional(v.number()),
+  },
+  handler: async (ctx, { projectId, sinceMs }) => {
+    const cutoff = Date.now() - (sinceMs ?? 5 * 60 * 1000);
+    const sessions = await ctx.db
+      .query("sessions")
+      .withIndex("by_project", (q) => q.eq("projectId", projectId))
+      .filter((q) => q.eq(q.field("isActive"), true))
+      .collect();
+
+    // Enrich with user info
+    const enriched = await Promise.all(
+      sessions.slice(0, 12).map(async (s) => {
+        const user = await ctx.db.get(s.userId);
+        return {
+          ...s,
+          displayName: user ? (user as any).name || (user as any).email?.split("@")[0] || "User" : "User",
+        };
+      })
+    );
+    return enriched;
+  },
+});

@@ -87,10 +87,15 @@ export function SuggestionsPanel({
     prompt: string
   ) => {
     setExecutingId(suggestionId);
-    await markInProgress({ suggestionId });
-    onExecuteSuggestion(prompt);
-    // Reset after a moment (the chat will handle the actual execution)
-    setTimeout(() => setExecutingId(null), 2000);
+    try {
+      await markInProgress({ suggestionId });
+      onExecuteSuggestion(prompt);
+      // Executing state is cleared when the suggestion status updates in Convex
+      // (the chat panel processes it and marks it complete/pending)
+    } catch {
+      // fallback clear
+      setExecutingId(null);
+    }
   };
 
   return (

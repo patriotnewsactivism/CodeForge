@@ -220,17 +220,20 @@ export function AIRefactor({ projectId, activeFile, selectedCode, onApplyRefacto
       return;
     }
     setAnalyzing(true);
-    // Simulate brief analysis delay
-    setTimeout(() => {
+    // Real analysis — runs synchronously in the JS event loop
+    try {
       const results = analyzeCodeLocally(codeToAnalyze);
       setSuggestions(results);
-      setAnalyzing(false);
       if (results.length === 0) {
         toast.success("Code looks clean! No refactoring needed.");
       } else {
         toast.info(`Found ${results.length} refactoring suggestion(s)`);
       }
-    }, 800);
+    } catch (err) {
+      toast.error("Analysis failed");
+    } finally {
+      setAnalyzing(false);
+    }
   }, [codeToAnalyze]);
 
   const handleCopy = async (code: string, id: string) => {

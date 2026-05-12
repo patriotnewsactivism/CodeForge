@@ -56,22 +56,33 @@ interface SimulatedUser {
 export function CollabHub({ projectId, sessionId }: CollabHubProps) {
   const [copied, setCopied] = useState(false);
   const [shareMode, setShareMode] = useState<"private" | "view" | "edit">("private");
-  const [chatMessages, setChatMessages] = useState<Array<{ user: string; text: string; time: string }>>([
+  const [localChatMessages, setLocalChatMessages] = useState<Array<{ user: string; text: string; time: string }>>([
     { user: "System", text: "Collaboration hub initialized. Share your project to start.", time: "now" },
   ]);
   const [chatInput, setChatInput] = useState("");
+  // chatMessages merges local + any future Convex-backed messages
+  const chatMessages = localChatMessages;
 
-  // Simulated online users (in real implementation, this would be from Convex presence)
-  const onlineUsers: SimulatedUser[] = useMemo(() => [
-    {
-      id: "you",
-      name: "You",
-      avatar: "👨‍💻",
-      status: "editing" as const,
-      file: "src/App.tsx",
-      color: AVATAR_COLORS[0],
-    },
-  ], []);
+  // Real presence: query sessions active in the last 5 minutes on this project
+  const activeSessions = useQuery(
+    api.sessions?.listActiveByProject ?? (null as any),
+    projectId ? { projectId, sinceMs: 5 * 60 * 1000 } : "skip"
+  ) || [];
+
+  const onlineUsers = useMemo(() => {
+    if (!activeSessions.length) return [];
+    return activeSessions
+      .filter((s: any) => s._id !== sessionId)
+      .slice(0, 8)
+      .map((s: any, i: number) => ({
+        id: s._id,
+        name: s.displayName || s.name || "Collaborator",
+        avatar: (s.displayName || s.name || "C").charAt(0).toUpperCase(),
+        status: s.isActive ? "editing" as const : "viewing" as const,
+        file: s.activeFilePath,
+        color: COLORS[i % COLORS.length],
+      }));
+  }, [activeSessions, sessionId]);
 
   const shareUrl = projectId
     ? `${window.location.origin}/collab/${projectId}?session=${sessionId || "default"}`
@@ -88,7 +99,7 @@ export function CollabHub({ projectId, sessionId }: CollabHubProps) {
 
   const handleSendChat = () => {
     if (!chatInput.trim()) return;
-    setChatMessages((prev) => [
+    setLocalChatMessages((prev) => [
       ...prev,
       { user: "You", text: chatInput, time: "now" },
     ]);

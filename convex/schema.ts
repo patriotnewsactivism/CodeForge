@@ -47,7 +47,8 @@ const schema = defineSchema({
     isActive: v.boolean(),
   })
     .index("by_user", ["userId"])
-    .index("by_user_active", ["userId", "isActive"]),
+    .index("by_user_active", ["userId", "isActive"])
+    .index("by_project", ["projectId"]),
 
   // ─── Chat Messages ──────────────────────────────────────────────
   messages: defineTable({
@@ -400,6 +401,19 @@ const schema = defineSchema({
     systemPrompt: v.string(),
     updatedAt: v.number(),
   }).index("by_user", ["userId"]),
+
+
+  // ─── Ecosystem cross-app publish records ────────────────────────
+  ecosystemPublishes: defineTable({
+    projectId: v.id("projects"),
+    fileId: v.optional(v.any()),
+    targetApp: v.string(),
+    targetDomain: v.string(),
+    publishedBy: v.id("users"),
+    publishedAt: v.number(),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_target", ["targetApp"]),
 
 });
 

@@ -78,3 +78,27 @@ export const revokeShareLink = mutation({
     await ctx.db.patch(shareId, { isActive: false });
   },
 });
+
+// ── Used by HTTP preview endpoint ───────────────────────────────
+export const getShareByToken = query({
+  args: { token: v.string() },
+  handler: async (ctx, { token }) => {
+    return await ctx.db
+      .query("projectShares" as any)
+      .withIndex("by_token", (q: any) => q.eq("token", token))
+      .first();
+  },
+});
+
+export const incrementViewCount = mutation({
+  args: { shareId: v.any() },
+  handler: async (ctx, { shareId }) => {
+    const share = await ctx.db.get(shareId);
+    if (share) {
+      await ctx.db.patch(shareId, {
+        viewCount: ((share as any).viewCount || 0) + 1,
+        lastViewedAt: Date.now(),
+      });
+    }
+  },
+});

@@ -411,3 +411,118 @@ export const getPlanLimits = query({
     return PLAN_LIMITS;
   },
 });
+
+// ── Real Stripe Checkout Session ────────────────────────────────
+// Env vars needed in Convex dashboard:
+//   STRIPE_SECRET_KEY = sk_live_... or sk_test_...
+//   STRIPE_WEEKLY_PRICE_ID, STRIPE_MONTHLY_PRICE_ID, STRIPE_LIFETIME_PRICE_ID
+//   STRIPE_WEBHOOK_SECRET = whsec_...
+//   APP_URL = https://codeforge.dev (your frontend URL)
+
+declare const process: { env: Record<string, string | undefined> };
+
+export const createCheckoutSession = action({
+  args: {
+    plan: v.union(v.literal("weekly"), v.literal("monthly"), v.literal("lifetime")),
+  },
+  handler: async (ctx, { plan }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const stripeKey = process.env.STRIPE_SECRET_KEY;
+    if (!stripeKey) throw new Error("Stripe not configured. Add STRIPE_SECRET_KEY to Convex env vars.");
+
+    const priceIds: Record<string, string | undefined> = {
+      weekly: process.env.STRIPE_WEEKLY_PRICE_ID,
+      monthly: process.env.STRIPE_MONTHLY_PRICE_ID,
+      lifetime: process.env.STRIPE_LIFETIME_PRICE_ID,
+    };
+    const priceId = priceIds[plan];
+    if (!priceId) throw new Error("Price ID not configured for plan: " + plan);
+
+    const appUrl = process.env.APP_URL || "https://codeforge.dev";
+    const mode = plan === "lifetime" ? "payment" : "subscription";
+
+    // Fetch existing subscription to get stripeCustomerId
+    const existingSub = await ctx.runQuery(api.subscriptions.getMySubscription);
+    const customerParam = (existingSub as any)?.stripeCustomerId
+      ? { customer: (existingSub as any).stripeCustomerId }
+      : { client_reference_id: userId };
+
+    const response = await fetch("https://api.stripe.com/v1/checkout/sessions", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer " + stripeKey,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        mode,
+        "line_items[0][price]": priceId,
+        "line_items[0][quantity]": "1",
+        success_url: appUrl + "/pricing?success=1&plan=" + plan,
+        cancel_url: appUrl + "/pricing?cancelled=1",
+        metadata: JSON.stringify({ userId, plan }),
+        allow_promotion_codes: "true",
+        ...customerParam,
+      } as Record<string, string>),
+    });
+
+    if (!response.ok) {
+      const err = await response.text();
+      throw new Error("Stripe error: " + err);
+    }
+
+    const session = await response.json();
+    return { url: session.url, sessionId: session.id };
+  },
+});
+
+// ── Stripe Webhook handler (called from http.ts) ────────────────
+export const handleStripeWebhook = action({
+  args: { payload: v.string(), signature: v.string() },
+  handler: async (ctx, { payload, signature }) => {
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    if (!webhookSecret) return { received: false, error: "No webhook secret" };
+
+    // Parse event (in production, verify signature via Stripe SDK)
+    let event: any;
+    try {
+      event = JSON.parse(payload);
+    } catch {
+      return { received: false, error: "Invalid JSON" };
+    }
+
+    if (event.type === "checkout.session.completed") {
+      const session = event.data.object;
+      const metadata = typeof session.metadata === "string"
+        ? JSON.parse(session.metadata)
+        : session.metadata || {};
+      const plan = metadata.plan || "monthly";
+      const userId = metadata.userId || session.client_reference_id;
+
+      if (userId && plan) {
+        await ctx.runMutation(api.subscriptions.upgradePlan, {
+          plan,
+          stripeCustomerId: session.customer,
+          stripeSubscriptionId: session.subscription,
+        });
+      }
+    }
+
+    if (event.type === "customer.subscription.deleted") {
+      const sub = event.data.object;
+      // Find user by customer ID and downgrade
+      const existingSub = await ctx.runQuery(api.subscriptions.getByStripeCustomer, {
+        customerId: sub.customer,
+      });
+      if (existingSub) {
+        await ctx.runMutation(api.subscriptions.upgradePlan, {
+          plan: "free",
+          stripeCustomerId: sub.customer,
+        });
+      }
+    }
+
+    return { received: true };
+  },
+});

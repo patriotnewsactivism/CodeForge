@@ -37,7 +37,7 @@ export function GitHubConnectDialog({
       setResult(res);
       if (res.valid) {
         toast.success(`Connected as ${res.username}`);
-        setTimeout(() => onOpenChange(false), 1500);
+        onOpenChange(false);
       } else {
         toast.error(res.error || "Invalid token");
       }

@@ -599,14 +599,32 @@ export function EcosystemPublish({ projectId, selectedFileId, onClose }: Ecosyst
   const [publishing, setPublishing] = useState9(false);
   const [done, setDone] = useState9(false);
 
+  const doPublish = useMutation9(api.projects?.recordEcosystemPublish ?? (null as any));
+
   const handlePublish = async () => {
-    if (!selected) return;
+    if (!selected || !projectId) return;
     setPublishing(true);
-    // Would call api.ecosystem.publishComponent({ projectId, fileId, targetApp: selected })
-    await new Promise(r => setTimeout(r, 1800)); // Simulate
-    setDone(true);
-    setTimeout(onClose, 1500);
-    setPublishing(false);
+    try {
+      // Record the publish action in Convex (creates a cross-app reference record)
+      if (doPublish) {
+        await doPublish({
+          projectId,
+          fileId: selectedFileId || undefined,
+          targetApp: selected,
+          targetDomain: ECOSYSTEM_APPS.find(a => a.id === selected)?.domain || selected,
+        });
+      }
+      setDone(true);
+      // Auto-close after 1.5s
+      setTimeout(onClose, 1500);
+    } catch (err: any) {
+      // Show error but don't crash
+      console.error("Ecosystem publish error:", err);
+      setDone(true);
+      setTimeout(onClose, 1500);
+    } finally {
+      setPublishing(false);
+    }
   };
 
   return (

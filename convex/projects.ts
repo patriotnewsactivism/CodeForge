@@ -83,3 +83,26 @@ export const listMissions = query({
       .take(20);
   },
 });
+
+// ── Ecosystem cross-app publish record ─────────────────────────
+export const recordEcosystemPublish = mutation({
+  args: {
+    projectId: v.id("projects"),
+    fileId: v.optional(v.any()),
+    targetApp: v.string(),
+    targetDomain: v.string(),
+  },
+  handler: async (ctx, { projectId, fileId, targetApp, targetDomain }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+    await ctx.db.insert("ecosystemPublishes" as any, {
+      projectId,
+      fileId: fileId || null,
+      targetApp,
+      targetDomain,
+      publishedBy: userId,
+      publishedAt: Date.now(),
+    });
+    return { success: true, targetApp, targetDomain };
+  },
+});
