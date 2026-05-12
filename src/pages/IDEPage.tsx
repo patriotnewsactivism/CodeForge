@@ -58,6 +58,20 @@ import { VoiceToApp } from "@/components/ide/VoiceToApp";
 import { APITester } from "@/components/ide/APITester";
 import { BranchManager } from "@/components/ide/BranchManager";
 import { ThemeEngine } from "@/components/ide/ThemeEngine";
+// ── Upgrade Imports ───────────────────────────────────────────────
+import { RealTerminal } from "@/components/ide/RealTerminal";
+import { ScreenshotToCode } from "@/components/ide/ScreenshotToCode";
+import { ShareablePreview } from "@/components/ide/ShareablePreview";
+import { MobileBuilder } from "@/components/ide/MobileBuilder";
+import { OneClickTemplates } from "@/components/ide/OneClickTemplates";
+import {
+  RollbackTimeline,
+  AdaptivePromptLibrary,
+  AgentPersonality,
+  EcosystemPublish,
+  PERSONALITIES,
+} from "@/components/ide/AllUpgrades_6_8_9_10";
+import { Camera, Share2, Rocket, RotateCcw, Sparkles, Sliders } from "lucide-react";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -164,6 +178,22 @@ export default function IDEPage() {
   const [showBranches, setShowBranches] = useState(false);
   const { settings: editorSettings, updateSettings } = useEditorSettings();
 
+  // ── Upgrade #2 Screenshot-to-Code ────────────────────────────
+  const [showScreenshot, setShowScreenshot] = useState(false);
+  // ── Upgrade #3 Shareable Preview ─────────────────────────────
+  const [showSharePreview, setShowSharePreview] = useState(false);
+  // ── Upgrade #5 Templates ─────────────────────────────────────
+  const [showTemplates, setShowTemplates] = useState(false);
+  // ── Upgrade #8 Rollback ───────────────────────────────────────
+  const [showRollback, setShowRollback] = useState(false);
+  // ── Upgrade #9 Adaptive Prompts ───────────────────────────────
+  const [showAdaptivePrompts, setShowAdaptivePrompts] = useState(false);
+  // ── Upgrade #10 Personality ──────────────────────────────────
+  const [showPersonality, setShowPersonality] = useState(false);
+  const [activePersonalityId, setActivePersonalityId] = useState("scrappy");
+  // ── Upgrade #7 Ecosystem Publish ─────────────────────────────
+  const [showEcosystem, setShowEcosystem] = useState(false);
+
   // Auto-fix loop state
   const autoFixTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [autoFixEnabled] = useState(true);
@@ -218,6 +248,16 @@ export default function IDEPage() {
   // Global keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      // Ctrl+Shift+S → Screenshot to Code
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === "S") {
+        e.preventDefault();
+        setShowScreenshot(v => !v);
+      }
+      // Ctrl+Shift+T → Templates
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === "T") {
+        e.preventDefault();
+        setShowTemplates(v => !v);
+      }
       // Ctrl+Shift+F → Search
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === "F") {
         e.preventDefault();
@@ -311,6 +351,25 @@ export default function IDEPage() {
     if (window.innerWidth < 768) setMobileTab("chat");
   }, []);
 
+  const handleScreenshotPrompt = useCallback((prompt: string, imageBase64: string) => {
+    // Prepend the image analysis to the prompt and send to agents
+    const fullPrompt = imageBase64
+      ? `[VISION INPUT] Image attached for analysis.
+
+${prompt}`
+      : prompt;
+    setExternalPrompt(fullPrompt);
+    setShowChat(true);
+    if (window.innerWidth < 768) setMobileTab("chat");
+  }, []);
+
+  const handlePersonalitySelect = useCallback((personalityId: string, systemPrompt: string) => {
+    setActivePersonalityId(personalityId);
+    // Store in localStorage so ChatPanel picks it up for system prompt injection
+    localStorage.setItem("codeforge_personality_id", personalityId);
+    localStorage.setItem("codeforge_personality_prompt", systemPrompt);
+  }, []);
+
   const handleReplayMission = useCallback((missionId: Id<"missions">) => {
     setActiveMissionId(missionId);
     setShowReplay(true);
@@ -368,7 +427,23 @@ export default function IDEPage() {
   // Check if current tab is a secondary one (show it in nav bar instead of "More")
   const isSecondaryActive = SECONDARY_TABS.some((t) => t.id === mobileTab);
 
-  // ─── MOBILE LAYOUT ───────────────────────────────────────────
+  // ─── MOBILE LAYOUT (<640px) → Full MobileBuilder ────────────────
+  const isMobileNative = typeof window !== "undefined" && window.innerWidth < 640;
+  if (isMobileNative) {
+    return (
+      <MobileBuilder
+        projectId={activeProjectId}
+        sessionId={activeSession?._id || null}
+        activeMissionId={activeMissionId}
+        onPromptSend={(prompt) => { setExternalPrompt(prompt); }}
+        onMissionSelect={(missionId) => { setActiveMissionId(missionId as Id<"missions">); }}
+        files={files || []}
+        allFilesForPreview={allFilesForPreview || []}
+      />
+    );
+  }
+
+  // ─── MOBILE LAYOUT (640-768px tablet) → Standard mobile nav ────
   if (isMobile) {
     return (
       <div className="flex h-[100dvh] flex-col bg-[#0a0a0f] text-white overflow-hidden">
@@ -381,7 +456,31 @@ export default function IDEPage() {
           onToggleChat={() => setShowChat(!showChat)}
           githubConnected={githubSettings?.connected || false}
           isMobile={true}
+          onOpenScreenshot={() => setShowScreenshot(true)}
+          onOpenTemplates={() => setShowTemplates(true)}
+          onOpenShare={() => setShowSharePreview(true)}
         />
+        {/* Mobile modals */}
+        {showScreenshot && (
+          <ScreenshotToCode
+            projectId={activeProjectId}
+            sessionId={activeSession?._id || null}
+            onPromptReady={handleScreenshotPrompt}
+            onClose={() => setShowScreenshot(false)}
+          />
+        )}
+        {showTemplates && (
+          <OneClickTemplates
+            projectId={activeProjectId}
+            sessionId={activeSession?._id || null}
+            onLaunch={(prompt, templateName) => {
+              setExternalPrompt(`[TEMPLATE: ${templateName}] ${prompt}`);
+              setMobileTab("chat");
+              setShowTemplates(false);
+            }}
+            onClose={() => setShowTemplates(false)}
+          />
+        )}
 
         <div className="flex-1 overflow-hidden">
           {mobileTab === "files" && (
@@ -458,7 +557,27 @@ export default function IDEPage() {
             <CostDashboard projectId={activeProjectId} />
           )}
           {mobileTab === "terminal" && (
-            <TerminalPanel projectId={activeProjectId} missionId={activeMissionId} />
+            <RealTerminal projectId={activeProjectId} />
+          )}
+          {mobileTab === "rollback" && (
+            <RollbackTimeline projectId={activeProjectId} onClose={() => setMobileTab("agents")} />
+          )}
+          {mobileTab === "ecosystem" && (
+            <EcosystemPublish projectId={activeProjectId} selectedFileId={activeFileId} onClose={() => setMobileTab("agents")} />
+          )}
+          {mobileTab === "personality" && (
+            <AgentPersonality
+              currentPersonalityId={activePersonalityId}
+              onSelect={handlePersonalitySelect}
+              onClose={() => setMobileTab("agents")}
+            />
+          )}
+          {mobileTab === "adaptiveprompts" && (
+            <AdaptivePromptLibrary
+              projectId={activeProjectId}
+              onSelectPrompt={handleSendPrompt}
+              onClose={() => setMobileTab("chat")}
+            />
           )}
           {mobileTab === "memory" && (
             <MemoryDashboard projectId={activeProjectId} />
@@ -717,7 +836,26 @@ export default function IDEPage() {
         onOpenCommandPalette={() => setShowCommandPalette(true)}
         onOpenSettings={() => setShowSettings(true)}
         onSendPrompt={handleSendPrompt}
+        onToggleRollback={() => setShowRollback(v => !v)}
+        onTogglePersonality={() => setShowPersonality(v => !v)}
+        onToggleAdaptivePrompts={() => setShowAdaptivePrompts(v => !v)}
+        onToggleEcosystem={() => setShowEcosystem(v => !v)}
+        showRollback={showRollback}
+        showPersonality={showPersonality}
+        showAdaptivePrompts={showAdaptivePrompts}
+        showEcosystem={showEcosystem}
+        activePersonalityId={activePersonalityId}
       />
+      {/* ── Upgrade #3: Share Preview button (floating relative to TopBar) ── */}
+      {showSharePreview && (
+        <div className="relative">
+          <ShareablePreview
+            projectId={activeProjectId}
+            projectName={activeProject?.name || "Project"}
+            onClose={() => setShowSharePreview(false)}
+          />
+        </div>
+      )}
 
       <div className="flex-1 overflow-hidden">
         <ResizablePanelGroup direction="horizontal">
@@ -783,7 +921,7 @@ export default function IDEPage() {
                       </ResizablePanel>
                       <ResizableHandle withHandle />
                       <ResizablePanel defaultSize={25}>
-                        <TerminalPanel projectId={activeProjectId} missionId={activeMissionId} />
+                        <RealTerminal projectId={activeProjectId} />
                       </ResizablePanel>
                     </>
                   ) : showPreview ? (
@@ -795,7 +933,7 @@ export default function IDEPage() {
                     </ResizablePanel>
                   ) : (
                     <ResizablePanel defaultSize={35}>
-                      <TerminalPanel projectId={activeProjectId} missionId={activeMissionId} />
+                      <RealTerminal projectId={activeProjectId} />
                     </ResizablePanel>
                   )}
                 </ResizablePanelGroup>
@@ -882,7 +1020,7 @@ export default function IDEPage() {
           )}
 
           {/* Agent Activity / Git / Costs / Memory / Timeline / Context / Activity / Architect / Tests / Debate / Replay panel */}
-          {(showAgents || showGit || showCosts || showMemory || showTimeline || showContext || showActivity || showArchitect || showTests || showDebate || showDeps || showCritic || showPromptMarket || showTrainer || showLiveDeploy || showProfiler || showCollab || showRefactor || showVoiceApp || showApiTester || showThemes || showBranches) && (
+          {(showAgents || showGit || showCosts || showMemory || showTimeline || showContext || showActivity || showArchitect || showTests || showDebate || showDeps || showCritic || showPromptMarket || showTrainer || showLiveDeploy || showProfiler || showCollab || showRefactor || showVoiceApp || showApiTester || showThemes || showBranches || showRollback || showEcosystem || showPersonality || showAdaptivePrompts) && (
             <>
               <ResizableHandle withHandle />
               <ResizablePanel defaultSize={18} minSize={14} maxSize={30}>
@@ -926,6 +1064,22 @@ export default function IDEPage() {
                   <ThemeEngine />
                 ) : showBranches ? (
                   <BranchManager projectId={activeProjectId} />
+                ) : showRollback ? (
+                  <RollbackTimeline projectId={activeProjectId} onClose={() => setShowRollback(false)} />
+                ) : showEcosystem ? (
+                  <EcosystemPublish projectId={activeProjectId} selectedFileId={activeFileId} onClose={() => setShowEcosystem(false)} />
+                ) : showPersonality ? (
+                  <AgentPersonality
+                    currentPersonalityId={activePersonalityId}
+                    onSelect={handlePersonalitySelect}
+                    onClose={() => setShowPersonality(false)}
+                  />
+                ) : showAdaptivePrompts ? (
+                  <AdaptivePromptLibrary
+                    projectId={activeProjectId}
+                    onSelectPrompt={handleSendPrompt}
+                    onClose={() => setShowAdaptivePrompts(false)}
+                  />
                 ) : showContext ? (
                   <ContextWindow
                     projectId={activeProjectId}
@@ -994,6 +1148,41 @@ export default function IDEPage() {
       />
 
       {/* Overlays */}
+      {/* ── Upgrade #2: Screenshot to Code modal ── */}
+      {showScreenshot && (
+        <ScreenshotToCode
+          projectId={activeProjectId}
+          sessionId={activeSession?._id || null}
+          onPromptReady={handleScreenshotPrompt}
+          onClose={() => setShowScreenshot(false)}
+        />
+      )}
+
+      {/* ── Upgrade #5: One-Click Templates modal ── */}
+      {showTemplates && (
+        <OneClickTemplates
+          projectId={activeProjectId}
+          sessionId={activeSession?._id || null}
+          onLaunch={(prompt, templateName) => {
+            setExternalPrompt(`[TEMPLATE: ${templateName}] ${prompt}`);
+            setShowChat(true);
+            setShowTemplates(false);
+          }}
+          onClose={() => setShowTemplates(false)}
+        />
+      )}
+
+      {/* ── Upgrade #3: Share Preview popup (desktop floating) ── */}
+      {showSharePreview && (
+        <div className="fixed top-12 right-4 z-50">
+          <ShareablePreview
+            projectId={activeProjectId}
+            projectName={activeProject?.name || "Project"}
+            onClose={() => setShowSharePreview(false)}
+          />
+        </div>
+      )}
+
       <CommandPalette
         open={showCommandPalette}
         onOpenChange={setShowCommandPalette}
@@ -1006,7 +1195,26 @@ export default function IDEPage() {
         onToggleSuggestions={() => setShowSuggestions(!showSuggestions)}
         onNewProject={handleCreateProject}
         onSendPrompt={handleSendPrompt}
+        onToggleRollback={() => setShowRollback(v => !v)}
+        onTogglePersonality={() => setShowPersonality(v => !v)}
+        onToggleAdaptivePrompts={() => setShowAdaptivePrompts(v => !v)}
+        onToggleEcosystem={() => setShowEcosystem(v => !v)}
+        showRollback={showRollback}
+        showPersonality={showPersonality}
+        showAdaptivePrompts={showAdaptivePrompts}
+        showEcosystem={showEcosystem}
+        activePersonalityId={activePersonalityId}
       />
+      {/* ── Upgrade #3: Share Preview button (floating relative to TopBar) ── */}
+      {showSharePreview && (
+        <div className="relative">
+          <ShareablePreview
+            projectId={activeProjectId}
+            projectName={activeProject?.name || "Project"}
+            onClose={() => setShowSharePreview(false)}
+          />
+        </div>
+      )}
       <KeyboardShortcuts open={showShortcuts} onOpenChange={setShowShortcuts} />
     </div>
   );

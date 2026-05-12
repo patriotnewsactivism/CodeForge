@@ -548,14 +548,40 @@ export const runAgentLoop = internalAction({
       },
     ];
 
-    // Inject memory context if available
+    // ── Inject Memory Context (Upgrade #6 — enhanced) ─────────────
     try {
       const memories = await ctx.runQuery(internal.engine.getRelevantMemories, {
-        projectId, limit: 5,
+        projectId, limit: 12,
       });
       if (memories.length > 0) {
-        const memCtx = memories.map((m: any) => `• ${m.title || m.category}: ${m.content}`).join("\n");
-        conversationMessages[0].content += `\n\n🧠 Relevant memories from past missions:\n${memCtx}`;
+        // Score: importance * 0.5 + useCount * 0.3 + recency * 0.2
+        const scored = memories
+          .map((m: any) => ({
+            ...m,
+            score: (m.importance || 5) * 0.5 +
+                   (m.useCount || 0) * 0.3 +
+                   (m.lastUsedAt ? Math.max(0, 1 - (Date.now() - m.lastUsedAt) / (30 * 86400000)) : 0) * 0.2
+          }))
+          .sort((a: any, b: any) => b.score - a.score)
+          .slice(0, 12);
+
+        const memCtx = scored.map((m: any, i: number) =>
+          `[${i+1}] [${(m.category || "general").toUpperCase()}] ${m.title ? m.title + ": " : ""}${m.content}`
+        ).join("\n");
+
+        conversationMessages[0].content += `\n\n## Project Memory (${scored.length} learned facts)\nAlways apply these when writing code for this project:\n${memCtx}\n---`;
+      }
+    } catch (e) {
+      // Non-fatal — memory injection failure should not block the mission
+    }
+
+    // ── Inject Personality / Style Preset (Upgrade #10) ──────────
+    try {
+      const personality = await ctx.runQuery(internal.engine.getUserPersonality, {
+        userId: agent.userId || "",
+      });
+      if (personality?.systemPrompt) {
+        conversationMessages[0].content += `\n\n## Coding Style Directive\n${personality.systemPrompt}`;
       }
     } catch (e) {
       // Non-fatal
@@ -1083,6 +1109,22 @@ export const updateMissionComplete = internalMutation({
   },
 });
 
+export const getUserPersonality = internalQuery({
+  args: { userId: v.string() },
+  handler: async (ctx, { userId }) => {
+    if (!userId) return null;
+    try {
+      const personality = await ctx.db
+        .query("userPersonality" as any)
+        .withIndex("by_user", (q: any) => q.eq("userId", userId))
+        .first();
+      return personality;
+    } catch {
+      return null;
+    }
+  },
+});
+
 export const getRelevantMemories = internalQuery({
   args: { projectId: v.id("projects"), limit: v.number() },
   handler: async (ctx, { projectId, limit }) => {
@@ -1182,3 +1224,31 @@ function matchGlob(path: string, pattern: string): boolean {
   const escaped = pattern.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*").replace(/\?/g, ".");
   return new RegExp(`^${escaped}$`, "i").test(path);
 }
+
+// ── Set User Personality (Upgrade #10) ──────────────────────────
+export const setUserPersonality = mutation({
+  args: { personalityId: v.string(), systemPrompt: v.string() },
+  handler: async (ctx, { personalityId, systemPrompt }) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    const user = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("email"), identity.email))
+      .first();
+    if (!user) return;
+    const existing = await ctx.db
+      .query("userPersonality" as any)
+      .withIndex("by_user", (q: any) => q.eq("userId", user._id))
+      .first();
+    if (existing) {
+      await ctx.db.patch(existing._id, { personalityId, systemPrompt, updatedAt: Date.now() });
+    } else {
+      await ctx.db.insert("userPersonality" as any, {
+        userId: user._id,
+        personalityId,
+        systemPrompt,
+        updatedAt: Date.now(),
+      });
+    }
+  },
+});

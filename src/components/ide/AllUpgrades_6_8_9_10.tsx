@@ -529,6 +529,19 @@ interface AgentPersonalityProps {
 }
 
 export function AgentPersonality({ currentPersonalityId, onSelect, onClose }: AgentPersonalityProps) {
+  const savePersonality = useMutation9(api.engine?.setUserPersonality ?? (null as any));
+  const [saving, setSaving] = useState9(false);
+
+  const handleSelect = async (p: typeof PERSONALITIES[0]) => {
+    setSaving(true);
+    try {
+      await savePersonality?.({ personalityId: p.id, systemPrompt: p.systemPrompt });
+    } catch {}
+    onSelect(p.id, p.systemPrompt);
+    setSaving(false);
+    onClose();
+  };
+
   return (
     <div className="flex flex-col h-full bg-[#0f0f17]">
       <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10">
@@ -539,7 +552,7 @@ export function AgentPersonality({ currentPersonalityId, onSelect, onClose }: Ag
         {PERSONALITIES.map(p => (
           <button
             key={p.id}
-            onClick={() => { onSelect(p.id, p.systemPrompt); onClose(); }}
+            onClick={() => handleSelect(p)}
             className={cn(
               "w-full text-left rounded-xl p-4 border transition-all",
               currentPersonalityId === p.id ? p.color : "border-white/10 bg-white/5 hover:border-white/20"
