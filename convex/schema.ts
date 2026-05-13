@@ -415,6 +415,17 @@ const schema = defineSchema({
     .index("by_project", ["projectId"])
     .index("by_target", ["targetApp"]),
 
+
+  // ─── Collab Chat Messages ───────────────────────────────────────
+  collabMessages: defineTable({
+    projectId: v.id("projects"),
+    userId: v.id("users"),
+    displayName: v.string(),
+    text: v.string(),
+    sentAt: v.number(),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_project_time", ["projectId", "sentAt"]),
 });
 
 export default schema;

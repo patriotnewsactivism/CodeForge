@@ -173,6 +173,14 @@ export function SearchPanel({ projectId, onFileSelect }: SearchPanelProps) {
               placeholder="Replace with..."
               className="h-7 text-xs bg-white/5 border-white/10"
             />
+            <button
+              onClick={handleReplaceAll}
+              disabled={replacing || results.length === 0}
+              className="shrink-0 px-2 py-1 text-[10px] bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-400 rounded transition-colors disabled:opacity-40"
+              title="Replace all occurrences"
+            >
+              {replacing ? "…" : "Replace All"}
+            </button>
           </div>
         )}
 

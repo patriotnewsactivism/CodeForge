@@ -268,6 +268,29 @@ export default function IDEPage() {
         e.preventDefault();
         setShowShortcuts(true);
       }
+      // Ctrl+Shift+D → Deploy Panel
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === "D") {
+        e.preventDefault();
+        setShowDeploy((v) => !v);
+      }
+      // Ctrl+Shift+P → AI Prompt Library
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === "P") {
+        e.preventDefault();
+        setShowPromptLib((v) => !v);
+      }
+      // Ctrl+` → Toggle Terminal
+      if ((e.ctrlKey) && e.key === "`") {
+        e.preventDefault();
+        setShowTerminal((v) => !v);
+      }
+      // Escape → Close modals
+      if (e.key === "Escape") {
+        setShowDeploy(false);
+        setShowScreenshot(false);
+        setShowTemplates(false);
+        setShowPromptLib(false);
+        setShowShortcuts(false);
+      }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);

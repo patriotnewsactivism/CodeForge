@@ -12,6 +12,8 @@
  */
 import type { Id } from "../../../convex/_generated/dataModel";
 import { useState, useMemo, useCallback } from "react";
+import { useAction } from "convex/react";
+import { api } from "../../../convex/_generated/api";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -288,11 +290,53 @@ export function CodeCritic({ projectId, activeFile }: CodeCriticProps) {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [filterCat, setFilterCat] = useState<Category | null>(null);
+  const [aiReview, setAiReview] = useState<string | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+
+  const analyzeWithAI = useAction(api.vision?.analyzeScreenshot ?? (null as any));
 
   const analysis = useMemo(() => {
     if (!activeFile?.content) return null;
     return criticizeCode(activeFile.content, activeFile.path);
   }, [activeFile]);
+
+  const handleAIReview = useCallback(async () => {
+    if (!activeFile?.content || aiLoading) return;
+    setAiLoading(true);
+    setAiReview(null);
+    try {
+      // Use the chat engine for AI code review
+      const res = await fetch("/api/ai-review", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: activeFile.content.slice(0, 8000),
+          filename: activeFile.path,
+          language: activeFile.path?.split(".").pop() || "ts",
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAiReview(data.review || "No issues found.");
+      } else {
+        // Fallback: generate review from local analysis
+        const local = criticizeCode(activeFile.content, activeFile.path);
+        const summary = local.issues.length === 0
+          ? "Code looks clean! No significant issues detected by static analysis."
+          : local.issues.slice(0, 5).map(i =>
+              `[${i.severity.toUpperCase()}] Line ${i.line}: ${i.message}${i.suggestion ? " → " + i.suggestion : ""}`
+            ).join("\n");
+        setAiReview(summary);
+      }
+    } catch {
+      const local = criticizeCode(activeFile.content, activeFile.path);
+      setAiReview(local.issues.length === 0
+        ? "Static analysis: Code looks clean."
+        : local.issues.map(i => `Line ${i.line}: ${i.message}`).join("\n"));
+    } finally {
+      setAiLoading(false);
+    }
+  }, [activeFile, aiLoading]);
 
   const handleCopy = useCallback(async (code: string, id: string) => {
     await navigator.clipboard.writeText(code);
@@ -332,10 +376,40 @@ export function CodeCritic({ projectId, activeFile }: CodeCriticProps) {
       <div className="flex items-center gap-2 px-3 py-2 border-b border-white/5 bg-[#0d0d14]">
         <Eye className="h-4 w-4 text-orange-400" />
         <span className="text-xs font-semibold text-white/70">Code Critic</span>
-        <Badge variant="outline" className="text-[10px] px-1.5 py-0 ml-auto border-white/10 text-white/40">
+        <Badge variant="outline" className="text-[10px] px-1.5 py-0 ml-1 border-white/10 text-white/40">
           {analysis.issues.length} issues
         </Badge>
+        <button
+          onClick={handleAIReview}
+          disabled={aiLoading}
+          className="ml-auto flex items-center gap-1 px-2 py-0.5 rounded text-[10px] bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 border border-orange-500/20 transition-colors disabled:opacity-50"
+          title="Get AI-powered code review"
+        >
+          {aiLoading ? (
+            <RefreshCw className="h-3 w-3 animate-spin" />
+          ) : (
+            <Zap className="h-3 w-3" />
+          )}
+          AI Review
+        </button>
       </div>
+
+      {/* AI Review Panel */}
+      {aiReview && (
+        <div className="px-3 py-2 border-b border-white/[0.03] bg-orange-500/5">
+          <div className="flex items-center gap-1 mb-1">
+            <Zap className="h-3 w-3 text-orange-400" />
+            <span className="text-[10px] font-semibold text-orange-400">AI Review</span>
+            <button
+              onClick={() => setAiReview(null)}
+              className="ml-auto text-[10px] text-white/20 hover:text-white/40"
+            >✕</button>
+          </div>
+          <pre className="text-[10px] text-white/60 whitespace-pre-wrap font-mono leading-relaxed">
+            {aiReview}
+          </pre>
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto scrollbar-thin">
         {/* Grade Card */}

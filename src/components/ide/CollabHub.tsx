@@ -11,7 +11,7 @@
  * - Session recording / replay
  */
 import type { Id } from "../../../convex/_generated/dataModel";
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
@@ -56,12 +56,21 @@ interface SimulatedUser {
 export function CollabHub({ projectId, sessionId }: CollabHubProps) {
   const [copied, setCopied] = useState(false);
   const [shareMode, setShareMode] = useState<"private" | "view" | "edit">("private");
-  const [localChatMessages, setLocalChatMessages] = useState<Array<{ user: string; text: string; time: string }>>([
-    { user: "System", text: "Collaboration hub initialized. Share your project to start.", time: "now" },
-  ]);
   const [chatInput, setChatInput] = useState("");
-  // chatMessages merges local + any future Convex-backed messages
-  const chatMessages = localChatMessages;
+
+  // Real-time collab chat from Convex
+  const convexMessages = useQuery(
+    api.collabMessages?.listByProject ?? (null as any),
+    projectId ? { projectId, limit: 100 } : "skip"
+  );
+  const sendCollabMessage = useMutation(api.collabMessages?.send ?? (null as any));
+
+  // Format Convex messages for display
+  const chatMessages = convexMessages?.map((m: any) => ({
+    user: m.displayName || "User",
+    text: m.text,
+    time: new Date(m.sentAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+  })) ?? [{ user: "System", text: "Collaboration hub initialized. Share your project to start.", time: "now" }];
 
   // Real presence: query sessions active in the last 5 minutes on this project
   const activeSessions = useQuery(
@@ -97,9 +106,21 @@ export function CollabHub({ projectId, sessionId }: CollabHubProps) {
     }
   };
 
-  const handleSendChat = () => {
-    if (!chatInput.trim()) return;
-    setLocalChatMessages((prev) => [
+  const handleSendChat = async () => {
+    if (!chatInput.trim() || !projectId) return;
+    const text = chatInput.trim();
+    setChatInput("");
+    try {
+      await sendCollabMessage({
+        projectId,
+        text,
+        displayName: "You",
+      });
+    } catch {
+      // fallback — just clear input
+    }
+    // legacy local fallback (no-op now that Convex handles it)
+    if (false) setLocalChatMessages((prev) => [
       ...prev,
       { user: "You", text: chatInput, time: "now" },
     ]);
