@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npx convex deploy --cmd 'tsc -b && vite build'",
+    "build": "vite build",
     "build:local": "tsc -b && vite build",
     "preview": "vite preview",
     "check": "biome check .",
@@ -21,7 +21,8 @@
     "test:demo": "bun run --bun scripts/demo-test.ts",
     "screenshot": "bun run --bun scripts/screenshot.ts",
     "env:get": "bunx convex env get",
-    "env:list": "bunx convex env list"
+    "env:list": "bunx convex env list",
+    "build:vercel": "tsc -b && vite build"
   },
   "dependencies": {
     "@auth/core": "^0.37.4",
