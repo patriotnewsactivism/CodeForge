@@ -2,6 +2,7 @@ import { useAction, useMutation, useQuery } from "convex/react";
 import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { AgentPanel } from "@/components/ide/AgentPanel";
+import { CompanyModePanel } from "@/components/ide/CompanyModePanel";
 import { MissionControl } from "@/components/ide/MissionControl";
 import { BuildProgress } from "@/components/ide/BuildProgress";
 import { ChatPanel } from "@/components/ide/ChatPanel";
@@ -55,6 +56,7 @@ import {
   AlertTriangle,
   BarChart3,
   Brain,
+  Building2,
   Code2,
   Cpu,
   Eye,
@@ -94,6 +96,7 @@ type RightPanel =
   | "chat"
   | "suggestions"
   | "agents"
+  | "company-mode"
   | "memory"
   | "thoughts"
   | "mission-control"
@@ -476,6 +479,12 @@ export function IDEPage() {
       color: "text-amber-400 border-amber-400",
     },
     {
+      id: "company-mode",
+      label: "Company",
+      icon: <Building2 className="h-3.5 w-3.5" />,
+      color: "text-amber-300 border-amber-300",
+    },
+    {
       id: "memory",
       label: "Memory",
       icon: <Brain className="h-3.5 w-3.5" />,
@@ -578,6 +587,11 @@ export function IDEPage() {
         {rightPanel === "agents" && (
           <PanelErrorBoundary panelName="Multi-Agent">
             <AgentPanel projectId={projectId as Id<"projects">} />
+          </PanelErrorBoundary>
+        )}
+        {rightPanel === "company-mode" && (
+          <PanelErrorBoundary panelName="Company Mode">
+            <CompanyModePanel projectId={projectId as Id<"projects">} />
           </PanelErrorBoundary>
         )}
         {rightPanel === "memory" && (
