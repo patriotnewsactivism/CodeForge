@@ -1,15 +1,27 @@
 /**
- * CinemaPanel.tsx — Live Mission Cinema
+ * CinemaPanel.tsx — Live Mission Cinema (Enhanced)
+ *
  * Scrub through every agent spawn, tool call, thought, debate, and sentry event
  * recorded as cinema frames. Real-time via Convex useQuery.
+ *
+ * Upgrades:
+ *  - Agent-colored timeline markers on the scrubber
+ *  - Speed controls (0.5x, 1x, 2x, 4x) with visual feedback
+ *  - Mini-map showing file changes over time
+ *  - Frame filtering by agent and type
  */
 
 import { useAction, useQuery } from "convex/react";
 import {
   Brain,
   CheckCircle,
+  ChevronDown,
+  ChevronRight,
+  FileCode2,
   Film,
+  Filter,
   GitBranch,
+  Map,
   MessageSquare,
   Pause,
   Play,
@@ -20,11 +32,12 @@ import {
   XCircle,
   Zap,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Slider } from "@/components/ui/slider";
+import { cn } from "@/lib/utils";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 
@@ -69,6 +82,282 @@ const FRAME_COLORS: Record<string, string> = {
   complete: "border-l-green-500 bg-green-950/20",
   error: "border-l-red-600 bg-red-950/30",
 };
+
+// ─── Agent Color Palette ─────────────────────────────────────────────────────
+
+const AGENT_COLORS: Record<string, string> = {
+  planner: "#a78bfa",
+  "planner-agent": "#a78bfa",
+  "ui-agent": "#60a5fa",
+  "logic-agent": "#4ade80",
+  "mobile-agent": "#22d3ee",
+  "feature-agent": "#fbbf24",
+  "debug-agent": "#f87171",
+  "test-agent": "#a3e635",
+  "reviewer-agent": "#fb923c",
+  "qa-agent": "#34d399",
+  "retrospective-agent": "#c084fc",
+};
+
+const DEFAULT_AGENT_COLOR = "#f472b6";
+
+function getAgentColor(agentId: string): string {
+  return AGENT_COLORS[agentId] ?? DEFAULT_AGENT_COLOR;
+}
+
+// ─── Timeline Markers Component ──────────────────────────────────────────────
+
+function TimelineMarkers({
+  frames,
+  currentIndex,
+  onSeek,
+}: {
+  frames: CinemaFrame[];
+  currentIndex: number;
+  onSeek: (index: number) => void;
+}) {
+  if (frames.length === 0) return null;
+
+  const width = 100; // percentage
+  const markerWidth = Math.max(0.3, width / frames.length);
+
+  // Group markers by type for different layers
+  const spawnIndices = frames
+    .map((f, i) => (f.frameType === "spawn" ? i : -1))
+    .filter(i => i >= 0);
+  const errorIndices = frames
+    .map((f, i) => (f.frameType === "error" ? i : -1))
+    .filter(i => i >= 0);
+  const completeIndices = frames
+    .map((f, i) => (f.frameType === "complete" ? i : -1))
+    .filter(i => i >= 0);
+
+  return (
+    <div className="relative w-full h-5 rounded bg-black/30 overflow-hidden cursor-pointer group">
+      {/* Background markers — all frames as agent-colored ticks */}
+      {frames.map((frame, i) => {
+        const left = (i / frames.length) * 100;
+        const color = getAgentColor(frame.agentId);
+        return (
+          <div
+            key={frame._id}
+            className="absolute top-0 h-full transition-opacity"
+            style={{
+              left: `${left}%`,
+              width: `${markerWidth}%`,
+              minWidth: "1px",
+              backgroundColor: color,
+              opacity: i === currentIndex ? 1 : 0.25,
+            }}
+            onClick={() => onSeek(i)}
+            title={`${frame.agentName}: ${frame.frameType}`}
+          />
+        );
+      })}
+
+      {/* Spawn markers — taller cyan ticks */}
+      {spawnIndices.map(i => (
+        <div
+          key={`spawn-${i}`}
+          className="absolute top-0 h-full"
+          style={{
+            left: `${(i / frames.length) * 100}%`,
+            width: "2px",
+            backgroundColor: "#22d3ee",
+            opacity: 0.7,
+          }}
+        />
+      ))}
+
+      {/* Error markers — red diamonds */}
+      {errorIndices.map(i => (
+        <div
+          key={`err-${i}`}
+          className="absolute top-1 h-3 w-1.5 rounded-sm"
+          style={{
+            left: `${(i / frames.length) * 100}%`,
+            backgroundColor: "#ef4444",
+          }}
+        />
+      ))}
+
+      {/* Complete markers — green ticks */}
+      {completeIndices.map(i => (
+        <div
+          key={`ok-${i}`}
+          className="absolute bottom-0 h-1"
+          style={{
+            left: `${(i / frames.length) * 100}%`,
+            width: "3px",
+            backgroundColor: "#22c55e",
+          }}
+        />
+      ))}
+
+      {/* Playhead */}
+      <div
+        className="absolute top-0 h-full w-0.5 bg-white shadow-lg shadow-white/20 transition-all duration-150"
+        style={{ left: `${(currentIndex / Math.max(frames.length - 1, 1)) * 100}%` }}
+      />
+
+      {/* Hover tooltip area */}
+      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div
+          className="absolute top-0 h-full w-0.5 bg-white/30"
+          style={{ left: `${(currentIndex / Math.max(frames.length - 1, 1)) * 100}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ─── MiniMap: File Changes Over Time ─────────────────────────────────────────
+
+function CinemaMiniMap({ frames }: { frames: CinemaFrame[] }) {
+  const fileChanges = useMemo(() => {
+    const changes: { file: string; agentId: string; frameIndex: number; type: string }[] = [];
+
+    frames.forEach((frame, idx) => {
+      if (frame.frameType !== "tool_call" && frame.frameType !== "tool_result") return;
+      try {
+        const payload = JSON.parse(frame.payload);
+        const tool = (payload.tool ?? "") as string;
+        if (
+          tool === "create_file" ||
+          tool === "edit_file" ||
+          tool === "write_file" ||
+          tool === "delete_file"
+        ) {
+          const file =
+            (payload.args?.path as string) ??
+            (payload.args?.filePath as string) ??
+            (payload.file as string) ??
+            "unknown";
+          changes.push({
+            file: file.split("/").pop() ?? file,
+            agentId: frame.agentId,
+            frameIndex: idx,
+            type: tool.replace("_file", ""),
+          });
+        }
+      } catch {}
+    });
+
+    return changes;
+  }, [frames]);
+
+  if (fileChanges.length === 0) {
+    return (
+      <div className="flex items-center justify-center py-3">
+        <p className="text-[10px] text-muted-foreground/30">No file changes recorded</p>
+      </div>
+    );
+  }
+
+  // Group by file name
+  const byFile = new Map<string, typeof fileChanges>();
+  for (const c of fileChanges) {
+    const existing = byFile.get(c.file) ?? [];
+    existing.push(c);
+    byFile.set(c.file, existing);
+  }
+
+  const totalFrames = frames.length;
+
+  return (
+    <div className="space-y-1">
+      {Array.from(byFile.entries())
+        .sort(([, a], [, b]) => b.length - a.length)
+        .slice(0, 10)
+        .map(([file, changes]) => (
+          <div key={file} className="flex items-center gap-2">
+            <FileCode2 className="h-3 w-3 text-muted-foreground/40 shrink-0" />
+            <span className="text-[9px] text-muted-foreground/60 truncate w-20 shrink-0">
+              {file}
+            </span>
+            <div className="flex-1 relative h-2 rounded bg-black/20">
+              {changes.map((c, i) => (
+                <div
+                  key={i}
+                  className="absolute top-0 h-full rounded-sm"
+                  style={{
+                    left: `${(c.frameIndex / totalFrames) * 100}%`,
+                    width: "3px",
+                    backgroundColor: getAgentColor(c.agentId),
+                    opacity: 0.8,
+                  }}
+                  title={`${c.type} by ${c.agentId}`}
+                />
+              ))}
+            </div>
+            <span className="text-[8px] text-muted-foreground/30 font-mono shrink-0 w-4 text-right">
+              {changes.length}
+            </span>
+          </div>
+        ))}
+    </div>
+  );
+}
+
+// ─── Frame Filter Bar ────────────────────────────────────────────────────────
+
+function FrameFilterBar({
+  frames,
+  activeFilter,
+  onFilter,
+}: {
+  frames: CinemaFrame[];
+  activeFilter: string | null;
+  onFilter: (filter: string | null) => void;
+}) {
+  const agents = useMemo(() => {
+    const seen = new Map<string, { name: string; count: number }>();
+    for (const f of frames) {
+      const existing = seen.get(f.agentId);
+      if (existing) existing.count++;
+      else seen.set(f.agentId, { name: f.agentName, count: 1 });
+    }
+    return Array.from(seen.entries()).sort(([, a], [, b]) => b.count - a.count);
+  }, [frames]);
+
+  return (
+    <div className="flex items-center gap-1 overflow-x-auto scrollbar-none py-1">
+      <button
+        type="button"
+        onClick={() => onFilter(null)}
+        className={cn(
+          "text-[9px] px-1.5 py-0.5 rounded shrink-0 transition-colors",
+          !activeFilter
+            ? "bg-primary/20 text-primary"
+            : "text-muted-foreground/50 hover:text-muted-foreground",
+        )}
+      >
+        All
+      </button>
+      {agents.slice(0, 6).map(([id, data]) => (
+        <button
+          key={id}
+          type="button"
+          onClick={() => onFilter(activeFilter === id ? null : id)}
+          className={cn(
+            "text-[9px] px-1.5 py-0.5 rounded shrink-0 transition-colors flex items-center gap-1",
+            activeFilter === id
+              ? "bg-white/10 text-foreground"
+              : "text-muted-foreground/50 hover:text-muted-foreground",
+          )}
+        >
+          <div
+            className="h-1.5 w-1.5 rounded-full shrink-0"
+            style={{ backgroundColor: getAgentColor(id) }}
+          />
+          {data.name}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ─── FrameCard ───────────────────────────────────────────────────────────────
 
 function FrameCard({
   frame,
@@ -167,6 +456,8 @@ export function CinemaPanel({
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  const [agentFilter, setAgentFilter] = useState<string | null>(null);
+  const [showMiniMap, setShowMiniMap] = useState(false);
   const frameRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const scrollRef = useRef<HTMLDivElement>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -183,6 +474,13 @@ export function CinemaPanel({
     missionId ? { missionId } : "skip",
   );
 
+  // Filter frames by agent when a filter is active
+  const filteredFrames = useMemo(() => {
+    if (!frames) return [];
+    if (!agentFilter) return frames;
+    return frames.filter(f => f.agentId === agentFilter);
+  }, [frames, agentFilter]);
+
   // Auto-scroll to active frame
   useEffect(() => {
     const el = frameRefs.current.get(currentIndex);
@@ -191,12 +489,12 @@ export function CinemaPanel({
 
   // Playback engine
   useEffect(() => {
-    if (!isPlaying || !frames?.length) return;
+    if (!isPlaying || !filteredFrames?.length) return;
     const baseMs = 300;
     const delay = baseMs / playbackSpeed;
     intervalRef.current = setInterval(() => {
       setCurrentIndex(prev => {
-        if (prev >= (frames?.length ?? 1) - 1) {
+        if (prev >= (filteredFrames?.length ?? 1) - 1) {
           setIsPlaying(false);
           return prev;
         }
@@ -206,7 +504,7 @@ export function CinemaPanel({
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [isPlaying, playbackSpeed, frames?.length]);
+  }, [isPlaying, playbackSpeed, filteredFrames?.length]);
 
   const handleBuildFromExisting = async () => {
     if (!missionId) return;
@@ -289,7 +587,7 @@ export function CinemaPanel({
     );
   }
 
-  const totalFrames = frames?.length ?? 0;
+  const totalFrames = filteredFrames?.length ?? 0;
 
   return (
     <div className="h-full flex flex-col bg-background">
@@ -318,15 +616,56 @@ export function CinemaPanel({
         )}
       </div>
 
-      {/* Stats row */}
+      {/* Stats row + Filter bar */}
       {summary && (
-        <div className="flex gap-2 px-3 py-1.5 border-b border-border shrink-0 overflow-x-auto scrollbar-none">
-          {Object.entries(summary.byType ?? {}).map(([type, count]) => (
-            <div key={type} className="flex items-center gap-1 shrink-0">
-              {FRAME_ICONS[type]}
-              <span className="text-[10px] text-muted-foreground">{String(count)}</span>
+        <div className="border-b border-border shrink-0">
+          {/* Stats */}
+          <div className="flex gap-2 px-3 py-1.5 overflow-x-auto scrollbar-none">
+            {Object.entries(summary.byType ?? {}).map(([type, count]) => (
+              <div key={type} className="flex items-center gap-1 shrink-0">
+                {FRAME_ICONS[type]}
+                <span className="text-[10px] text-muted-foreground">{String(count)}</span>
+              </div>
+            ))}
+            {/* Mini-map toggle */}
+            <button
+              type="button"
+              onClick={() => setShowMiniMap(m => !m)}
+              className={cn(
+                "ml-auto flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded shrink-0 transition-colors",
+                showMiniMap
+                  ? "bg-primary/20 text-primary"
+                  : "text-muted-foreground/40 hover:text-muted-foreground",
+              )}
+            >
+              <Map className="h-3 w-3" />
+              Map
+            </button>
+          </div>
+
+          {/* Agent filter bar */}
+          {frames && frames.length > 0 && (
+            <div className="px-3 pb-1.5 border-t border-border/20">
+              <FrameFilterBar
+                frames={frames}
+                activeFilter={agentFilter}
+                onFilter={setAgentFilter}
+              />
             </div>
-          ))}
+          )}
+        </div>
+      )}
+
+      {/* Mini-map panel */}
+      {showMiniMap && frames && frames.length > 0 && (
+        <div className="border-b border-border/30 px-3 py-2 bg-black/10 shrink-0">
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <FileCode2 className="h-3 w-3 text-muted-foreground/50" />
+            <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/50">
+              File Changes Timeline
+            </span>
+          </div>
+          <CinemaMiniMap frames={frames} />
         </div>
       )}
 
@@ -348,9 +687,23 @@ export function CinemaPanel({
               {building ? "Building…" : "Backfill from existing data"}
             </Button>
           </div>
+        ) : filteredFrames.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 gap-3">
+            <Filter className="h-8 w-8 text-muted-foreground/30" />
+            <p className="text-muted-foreground text-xs text-center">
+              No frames match this filter.
+            </p>
+            <button
+              type="button"
+              onClick={() => setAgentFilter(null)}
+              className="text-[10px] text-primary hover:underline"
+            >
+              Clear filter
+            </button>
+          </div>
         ) : (
           <div className="flex flex-col gap-1">
-            {frames.map((frame, i) => (
+            {filteredFrames.map((frame, i) => (
               <div
                 key={frame._id}
                 ref={el => {
@@ -369,11 +722,21 @@ export function CinemaPanel({
         )}
       </ScrollArea>
 
-      {/* Playback controls */}
+      {/* Playback controls — Enhanced */}
       {totalFrames > 0 && (
-        <div className="shrink-0 border-t border-border px-3 py-2 bg-[oklch(0.10_0.02_260)]">
-          {/* Scrub bar */}
-          <div className="mb-2">
+        <div className="shrink-0 border-t border-border px-3 py-2 bg-[oklch(0.10_0.02_260)] space-y-2">
+          {/* Agent-colored timeline markers */}
+          <TimelineMarkers
+            frames={filteredFrames}
+            currentIndex={currentIndex}
+            onSeek={i => {
+              setCurrentIndex(i);
+              setIsPlaying(false);
+            }}
+          />
+
+          {/* Scrub slider */}
+          <div>
             <Slider
               min={0}
               max={Math.max(0, totalFrames - 1)}
@@ -385,12 +748,15 @@ export function CinemaPanel({
               className="w-full"
             />
             <div className="flex justify-between text-[9px] text-muted-foreground mt-0.5">
-              <span>Frame {currentIndex + 1}</span>
+              <span>
+                Frame {currentIndex + 1}
+                {agentFilter ? ` (filtered)` : ""}
+              </span>
               <span>{totalFrames} total</span>
             </div>
           </div>
 
-          {/* Controls */}
+          {/* Transport controls */}
           <div className="flex items-center gap-2">
             <Button
               size="icon"
@@ -427,20 +793,21 @@ export function CinemaPanel({
               <SkipForward className="h-3.5 w-3.5" />
             </Button>
 
-            {/* Speed */}
-            <div className="ml-auto flex items-center gap-1.5">
+            {/* Speed controls — enhanced with active highlight */}
+            <div className="ml-auto flex items-center gap-1 bg-black/20 rounded-lg p-0.5 border border-border/20">
               {[0.5, 1, 2, 4].map(s => (
                 <button
                   key={s}
                   type="button"
                   onClick={() => setPlaybackSpeed(s)}
-                  className={`text-[10px] px-1.5 py-0.5 rounded transition-colors ${
+                  className={cn(
+                    "text-[10px] px-2 py-0.5 rounded-md transition-all font-mono",
                     playbackSpeed === s
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground/50 hover:text-foreground hover:bg-white/5",
+                  )}
                 >
-                  {s}x
+                  {s}×
                 </button>
               ))}
             </div>
