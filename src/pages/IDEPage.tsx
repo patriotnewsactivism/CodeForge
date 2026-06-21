@@ -47,6 +47,11 @@ const ProjectAnalytics = lazy(() =>
     default: m.ProjectAnalytics,
   })),
 );
+const MetricsDashboard = lazy(() =>
+  import("@/components/ide/MetricsDashboard").then(m => ({
+    default: m.MetricsDashboard,
+  })),
+);
 const MemoryTab = lazy(() =>
   import("@/components/ide/MemoryTab").then(m => ({
     default: m.MemoryTab,
@@ -106,7 +111,8 @@ type RightPanel =
   | "deploy"
   | "cinema"
   | "errors"
-  | "analytics";
+  | "analytics"
+  | "metrics";
 // Mobile views: one panel visible at a time
 type MobileView = "files" | "editor" | "preview" | "panel";
 
@@ -539,6 +545,12 @@ export function IDEPage() {
       icon: <BarChart3 className="h-3.5 w-3.5" />,
       color: "text-teal-400 border-teal-400",
     },
+    {
+      id: "metrics",
+      label: "Metrics",
+      icon: <BarChart3 className="h-3.5 w-3.5" />,
+      color: "text-cyan-400 border-cyan-400",
+    },
   ];
 
   const rightPanelContent = (
@@ -653,6 +665,13 @@ export function IDEPage() {
           <PanelErrorBoundary panelName="Analytics">
             <Suspense fallback={<PanelSkeleton />}>
               <ProjectAnalytics projectId={projectId as Id<"projects">} />
+            </Suspense>
+          </PanelErrorBoundary>
+        )}
+        {rightPanel === "metrics" && (
+          <PanelErrorBoundary panelName="Live Metrics">
+            <Suspense fallback={<PanelSkeleton />}>
+              <MetricsDashboard projectId={projectId as Id<"projects">} />
             </Suspense>
           </PanelErrorBoundary>
         )}
