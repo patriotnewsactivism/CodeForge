@@ -13,6 +13,7 @@ import { DiffViewer } from "@/components/ide/DiffViewer";
 import { EditorTabs } from "@/components/ide/EditorTabs";
 import { FileTree } from "@/components/ide/FileTree";
 import { GitHubConnectDialog } from "@/components/ide/GitHubConnectDialog";
+import { InterjectionBar } from "@/components/ide/InterjectionBar";
 import { GitPanel } from "@/components/ide/GitPanel";
 import { ImportRepoDialog } from "@/components/ide/ImportRepoDialog";
 import { LivePreview } from "@/components/ide/LivePreview";
@@ -685,6 +686,8 @@ export function IDEPage() {
           />
         </PanelErrorBoundary>
 
+        <InterjectionBar projectId={projectId as Id<"projects">} />
+
         {/* Main content area — full height minus top bar and bottom nav */}
         <div className="flex-1 overflow-hidden relative">
           {mobileView === "editor" && (
@@ -852,6 +855,8 @@ export function IDEPage() {
         <PanelErrorBoundary panelName="Cost Bar">
           <CostBar projectId={projectId as Id<"projects">} />
         </PanelErrorBoundary>
+
+        <InterjectionBar projectId={projectId as Id<"projects">} />
 
         <div className="flex-1 overflow-hidden">
           <ResizablePanelGroup direction="horizontal">
