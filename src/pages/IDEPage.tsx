@@ -1,8 +1,8 @@
 import { useAction, useMutation, useQuery } from "convex/react";
 import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { AgentActivityPanel } from "@/components/ide/AgentActivityPanel";
 import { AgentPanel } from "@/components/ide/AgentPanel";
+import { MissionControl } from "@/components/ide/MissionControl";
 import { BuildProgress } from "@/components/ide/BuildProgress";
 import { ChatPanel } from "@/components/ide/ChatPanel";
 import { CodeEditor } from "@/components/ide/CodeEditor";
@@ -40,6 +40,11 @@ const AnalyticsDashboard = lazy(() =>
     default: m.AnalyticsDashboard,
   })),
 );
+const ProjectAnalytics = lazy(() =>
+  import("@/components/ide/ProjectAnalytics").then(m => ({
+    default: m.ProjectAnalytics,
+  })),
+);
 const MemoryTab = lazy(() =>
   import("@/components/ide/MemoryTab").then(m => ({
     default: m.MemoryTab,
@@ -58,6 +63,7 @@ import {
   Github,
   Lightbulb,
   MessageSquare,
+  Radio,
   Save,
   X,
   Zap,
@@ -90,6 +96,7 @@ type RightPanel =
   | "agents"
   | "memory"
   | "thoughts"
+  | "mission-control"
   | "git"
   | "diff"
   | "deploy"
@@ -475,6 +482,12 @@ export function IDEPage() {
       color: "text-violet-400 border-violet-400",
     },
     {
+      id: "mission-control",
+      label: "Mission Control",
+      icon: <Radio className="h-3.5 w-3.5" />,
+      color: "text-red-400 border-red-400",
+    },
+    {
       id: "thoughts",
       label: "Activity",
       icon: <Cpu className="h-3.5 w-3.5" />,
@@ -574,9 +587,14 @@ export function IDEPage() {
             </Suspense>
           </PanelErrorBoundary>
         )}
+        {rightPanel === "mission-control" && (
+          <PanelErrorBoundary panelName="Mission Control">
+            <MissionControl projectId={projectId as Id<"projects">} />
+          </PanelErrorBoundary>
+        )}
         {rightPanel === "thoughts" && (
           <PanelErrorBoundary panelName="Agent Activity">
-            <AgentActivityPanel projectId={projectId as Id<"projects">} />
+            <MissionControl projectId={projectId as Id<"projects">} />
           </PanelErrorBoundary>
         )}
         {rightPanel === "git" && (
@@ -619,7 +637,7 @@ export function IDEPage() {
         {rightPanel === "analytics" && (
           <PanelErrorBoundary panelName="Analytics">
             <Suspense fallback={<PanelSkeleton />}>
-              <AnalyticsDashboard projectId={projectId as Id<"projects">} />
+              <ProjectAnalytics projectId={projectId as Id<"projects">} />
             </Suspense>
           </PanelErrorBoundary>
         )}

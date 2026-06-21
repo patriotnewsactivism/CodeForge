@@ -16,6 +16,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { BYOKBanner } from "@/components/ide/BYOKBanner";
+import { DashboardAnalytics } from "@/components/DashboardAnalytics";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -295,6 +296,11 @@ export function DashboardPage() {
             ))}
           </div>
         )}
+
+        {/* ── Analytics Overview ── */}
+        <DashboardAnalytics
+          projectIds={sortedProjects.map(p => p._id)}
+        />
       </div>
 
       {/* ── CREATE PROJECT MODAL ── */}
