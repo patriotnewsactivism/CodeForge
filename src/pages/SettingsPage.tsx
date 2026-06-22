@@ -12,6 +12,7 @@ import { useAction, useMutation, useQuery } from "convex/react";
 import {
   CheckCircle2,
   ChevronRight,
+  Cpu,
   Eye,
   EyeOff,
   Github,
@@ -27,6 +28,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { ApiKeysTab } from "@/components/settings/ApiKeysTab";
+import { ModelProfilesTab } from "@/components/settings/ModelProfilesTab";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -44,13 +46,14 @@ import { Switch } from "@/components/ui/switch";
 import { useTheme } from "@/contexts/ThemeContext";
 import { api } from "../../convex/_generated/api";
 
-type SettingsTab = "account" | "appearance" | "github" | "api-keys";
+type SettingsTab = "account" | "appearance" | "github" | "api-keys" | "ai-models";
 
 const TABS: { id: SettingsTab; label: string; icon: React.ElementType }[] = [
   { id: "account", label: "Account", icon: User },
   { id: "appearance", label: "Appearance", icon: Palette },
   { id: "github", label: "GitHub", icon: Github },
   { id: "api-keys", label: "API Keys", icon: Key },
+  { id: "ai-models", label: "AI Models", icon: Cpu },
 ];
 
 export function SettingsPage() {
@@ -410,6 +413,19 @@ export function SettingsPage() {
               }}
             >
               <ApiKeysTab />
+            </div>
+          )}
+
+          {/* ── AI Models & Profiles ── */}
+          {activeTab === "ai-models" && (
+            <div
+              className="rounded-xl p-5"
+              style={{
+                background: "#0D1117",
+                border: "1px solid rgba(255,255,255,0.08)",
+              }}
+            >
+              <ModelProfilesTab />
             </div>
           )}
         </div>

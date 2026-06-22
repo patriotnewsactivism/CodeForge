@@ -835,6 +835,14 @@ const schema = defineSchema({
     startedAt: v.number(),
     completedAt: v.optional(v.number()),
   }).index("by_project", ["projectId"]),
+
+  // User settings — model profiles and preferences
+  userSettings: defineTable({
+    userId: v.id("users"),
+    modelProfileId: v.string(),
+    agentModels: v.any(), // Record<role, modelId>
+    updatedAt: v.number(),
+  }).index("by_user", ["userId"]),
 });
 
 export default schema;

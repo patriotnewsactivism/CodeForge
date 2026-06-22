@@ -563,7 +563,13 @@ export async function callAIWithFallback(
 
 /**
  * getModelForRole — returns the best model ID for a given agent role.
+ * If userAgentModels is provided (from their saved profile), use those first.
  */
-export function getModelForRole(role: string): string {
-  return AGENT_MODELS[role.toLowerCase()] ?? AGENT_MODELS.default;
+export function getModelForRole(
+  role: string,
+  userAgentModels?: Record<string, string>,
+): string {
+  const r = role.toLowerCase();
+  if (userAgentModels?.[r]) return userAgentModels[r];
+  return AGENT_MODELS[r] ?? AGENT_MODELS.default;
 }
