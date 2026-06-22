@@ -157,15 +157,26 @@ export const pushToGitHub = action({
     error: v.optional(v.string()),
   }),
   handler: async (ctx, args) => {
-    if (!GITHUB_TOKEN) {
+    // Try platform token first, then fall back to user's saved GitHub PAT
+    let token = GITHUB_TOKEN;
+    if (!token) {
+      try {
+        const settings = await ctx.runQuery(api.github.getTokenInternal, {});
+        token = settings?.token ?? null;
+      } catch (_) {
+        // Not authenticated or no token saved
+      }
+    }
+    if (!token) {
       return {
         success: false,
-        error: "GITHUB_TOKEN not configured. Add it in project settings.",
+        error:
+          "No GitHub token available. Connect your GitHub account in Settings → GitHub, or ask the admin to set GITHUB_TOKEN.",
       };
     }
 
     const ghHeaders = {
-      Authorization: `Bearer ${GITHUB_TOKEN}`,
+      Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
       Accept: "application/vnd.github+json",
       "X-GitHub-Api-Version": "2022-11-28",
@@ -333,16 +344,27 @@ export const importFromGitHub = action({
     error: v.optional(v.string()),
   }),
   handler: async (ctx, args) => {
-    if (!GITHUB_TOKEN) {
+    // Try platform token first, then fall back to user's saved GitHub PAT
+    let token = GITHUB_TOKEN;
+    if (!token) {
+      try {
+        const settings = await ctx.runQuery(api.github.getTokenInternal, {});
+        token = settings?.token ?? null;
+      } catch (_) {
+        // Not authenticated or no token saved
+      }
+    }
+    if (!token) {
       return {
         success: false,
         filesImported: 0,
-        error: "GITHUB_TOKEN not configured",
+        error:
+          "No GitHub token available. Connect your GitHub account in Settings → GitHub, or ask the admin to set GITHUB_TOKEN.",
       };
     }
 
     const ghHeaders = {
-      Authorization: `Bearer ${GITHUB_TOKEN}`,
+      Authorization: `Bearer ${token}`,
       Accept: "application/vnd.github+json",
       "User-Agent": "CodeForge-Agent",
     };

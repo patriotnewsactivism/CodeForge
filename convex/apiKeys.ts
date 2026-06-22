@@ -53,7 +53,7 @@ function maskKey(key: string): string {
 
 // ─── PROVIDER VALIDATION ──────────────────────────────────────────────────────
 
-const PROVIDER_ENDPOINTS: Record<string, { url: string; model: string }> = {
+const PROVIDER_ENDPOINTS: Record<string, { url: string; model: string; extraHeaders?: Record<string, string> }> = {
   openai: {
     url: "https://api.openai.com/v1/chat/completions",
     model: "gpt-4o-mini",
@@ -66,6 +66,14 @@ const PROVIDER_ENDPOINTS: Record<string, { url: string; model: string }> = {
   moonshot: {
     url: "https://api.moonshot.cn/v1/chat/completions",
     model: "moonshot-v1-8k",
+  },
+  openrouter: {
+    url: "https://openrouter.ai/api/v1/chat/completions",
+    model: "openai/gpt-4o-mini",
+    extraHeaders: {
+      "HTTP-Referer": "https://codeforge.dev",
+      "X-Title": "CodeForge AI",
+    },
   },
 };
 
@@ -82,6 +90,7 @@ async function validateKeyWithProvider(
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,
+        ...(endpoint.extraHeaders ?? {}),
       },
       body: JSON.stringify({
         model: endpoint.model,

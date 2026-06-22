@@ -19,7 +19,13 @@ declare const process: { env: Record<string, string | undefined> };
 export interface ModelConfig {
   id: string;
   name: string;
-  provider: "deepseek" | "xai" | "moonshot" | "openai" | "azure";
+  provider:
+    | "deepseek"
+    | "xai"
+    | "moonshot"
+    | "openai"
+    | "azure"
+    | "openrouter";
   apiModel: string;
   inputCostPer1M: number;
   outputCostPer1M: number;
@@ -108,7 +114,124 @@ export const MODELS: Record<string, ModelConfig> = {
     maxTokens: 8192,
     tier: "strong",
   },
+
+  // ─── OpenRouter models (100+ models via single API key) ────────────────
+  "or/anthropic/claude-sonnet-4": {
+    id: "or/anthropic/claude-sonnet-4",
+    name: "Claude Sonnet 4 (OR)",
+    provider: "openrouter",
+    apiModel: "anthropic/claude-sonnet-4-20250514",
+    inputCostPer1M: 3.0,
+    outputCostPer1M: 15.0,
+    maxTokens: 8192,
+    tier: "strong",
+  },
+  "or/anthropic/claude-3.5-haiku": {
+    id: "or/anthropic/claude-3.5-haiku",
+    name: "Claude 3.5 Haiku (OR)",
+    provider: "openrouter",
+    apiModel: "anthropic/claude-3.5-haiku",
+    inputCostPer1M: 0.8,
+    outputCostPer1M: 4.0,
+    maxTokens: 8192,
+    tier: "fast",
+  },
+  "or/google/gemini-2.5-pro": {
+    id: "or/google/gemini-2.5-pro",
+    name: "Gemini 2.5 Pro (OR)",
+    provider: "openrouter",
+    apiModel: "google/gemini-2.5-pro-preview",
+    inputCostPer1M: 1.25,
+    outputCostPer1M: 10.0,
+    maxTokens: 8192,
+    tier: "strong",
+  },
+  "or/google/gemini-2.5-flash": {
+    id: "or/google/gemini-2.5-flash",
+    name: "Gemini 2.5 Flash (OR)",
+    provider: "openrouter",
+    apiModel: "google/gemini-2.5-flash-preview",
+    inputCostPer1M: 0.15,
+    outputCostPer1M: 0.6,
+    maxTokens: 8192,
+    tier: "fast",
+  },
+  "or/meta-llama/llama-4-maverick": {
+    id: "or/meta-llama/llama-4-maverick",
+    name: "Llama 4 Maverick (OR)",
+    provider: "openrouter",
+    apiModel: "meta-llama/llama-4-maverick",
+    inputCostPer1M: 0.2,
+    outputCostPer1M: 0.6,
+    maxTokens: 8192,
+    tier: "balanced",
+  },
+  "or/qwen/qwen3-235b": {
+    id: "or/qwen/qwen3-235b",
+    name: "Qwen 3 235B (OR)",
+    provider: "openrouter",
+    apiModel: "qwen/qwen3-235b-a22b",
+    inputCostPer1M: 0.2,
+    outputCostPer1M: 0.6,
+    maxTokens: 8192,
+    tier: "balanced",
+  },
+  "or/mistralai/codestral": {
+    id: "or/mistralai/codestral",
+    name: "Codestral (OR)",
+    provider: "openrouter",
+    apiModel: "mistralai/codestral-2501",
+    inputCostPer1M: 0.3,
+    outputCostPer1M: 0.9,
+    maxTokens: 8192,
+    tier: "fast",
+  },
+  "or/deepseek/deepseek-r1": {
+    id: "or/deepseek/deepseek-r1",
+    name: "DeepSeek R1 (OR)",
+    provider: "openrouter",
+    apiModel: "deepseek/deepseek-r1",
+    inputCostPer1M: 0.55,
+    outputCostPer1M: 2.19,
+    maxTokens: 8192,
+    tier: "strong",
+  },
+  "or/openai/gpt-4.1": {
+    id: "or/openai/gpt-4.1",
+    name: "GPT-4.1 (OR)",
+    provider: "openrouter",
+    apiModel: "openai/gpt-4.1",
+    inputCostPer1M: 2.0,
+    outputCostPer1M: 8.0,
+    maxTokens: 8192,
+    tier: "strong",
+  },
+  "or/openai/o3-mini": {
+    id: "or/openai/o3-mini",
+    name: "o3-mini (OR)",
+    provider: "openrouter",
+    apiModel: "openai/o3-mini",
+    inputCostPer1M: 1.1,
+    outputCostPer1M: 4.4,
+    maxTokens: 8192,
+    tier: "balanced",
+  },
+  "or/nousresearch/hermes-3-llama-3.1-405b": {
+    id: "or/nousresearch/hermes-3-llama-3.1-405b",
+    name: "Hermes 3 405B (OR)",
+    provider: "openrouter",
+    apiModel: "nousresearch/hermes-3-llama-3.1-405b",
+    inputCostPer1M: 0.8,
+    outputCostPer1M: 0.8,
+    maxTokens: 8192,
+    tier: "balanced",
+  },
 };
+
+// Helper: get all OpenRouter model IDs for multi-model swarming
+export function getOpenRouterModels(): ModelConfig[] {
+  return Object.values(MODELS).filter(m => m.provider === "openrouter");
+}
 
 export const DEFAULT_MODEL = "deepseek-v3";
 
@@ -141,6 +264,8 @@ function getBaseUrl(provider: ModelConfig["provider"]): string {
       return "https://api.openai.com/v1";
     case "azure":
       return process.env.AZURE_OPENAI_ENDPOINT ?? "";
+    case "openrouter":
+      return "https://openrouter.ai/api/v1";
   }
 }
 
@@ -151,6 +276,7 @@ const PROVIDER_KEY_MAP: Record<ModelConfig["provider"], string> = {
   moonshot: "moonshot",
   openai: "openai",
   azure: "openai", // azure falls back to openai key in BYOK
+  openrouter: "openrouter",
 };
 
 /**
@@ -188,6 +314,8 @@ function getApiKey(
       return process.env.OPENAI_API_KEY ?? "";
     case "azure":
       return process.env.AZURE_OPENAI_API_KEY ?? "";
+    case "openrouter":
+      return process.env.OPENROUTER_API_KEY ?? "";
   }
 }
 
@@ -311,12 +439,19 @@ export async function callAI(
     );
   }
 
+  // OpenRouter needs extra headers for ranking/attribution
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${apiKey}`,
+  };
+  if (config.provider === "openrouter") {
+    headers["HTTP-Referer"] = "https://codeforge.dev";
+    headers["X-Title"] = "CodeForge AI";
+  }
+
   const res = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
+    headers,
     body: JSON.stringify({
       model: config.apiModel,
       messages,

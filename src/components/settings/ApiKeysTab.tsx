@@ -30,6 +30,14 @@ import { api } from "../../../convex/_generated/api";
 
 const PROVIDERS = [
   {
+    id: "openrouter" as const,
+    name: "OpenRouter",
+    label: "100+ models — Claude, Gemini, Llama, Qwen, Mistral & more",
+    placeholder: "sk-or-v1-...",
+    docsUrl: "https://openrouter.ai/keys",
+    color: "#EC4899", // pink — stands out as the recommended option
+  },
+  {
     id: "openai" as const,
     name: "OpenAI",
     label: "GPT-4o / GPT-4o Mini",

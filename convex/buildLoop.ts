@@ -202,10 +202,62 @@ export const runBuildLoop = action({
       projectId: args.projectId,
     });
 
-    const fileContext = files
-      .filter((f: any) => !f.isDirectory)
-      .map((f: any) => `--- ${f.path} ---\n${f.content}`)
-      .join("\n\n");
+    // For large repos (imported), send a file tree + key file contents instead
+    // of dumping everything. Keeps the context window manageable.
+    const codeFiles = files.filter((f: any) => !f.isDirectory);
+    const isLargeProject = codeFiles.length > 15;
+
+    let fileContext: string;
+    if (isLargeProject) {
+      // File tree overview + content of key files only
+      const fileTree = codeFiles
+        .map((f: any) => `  ${f.path} (${f.content?.length ?? 0} chars)`)
+        .join("\n");
+
+      // Prioritize key files: package.json, schema, main entry, README, config
+      const keyPatterns = [
+        /package\.json$/,
+        /schema\.(ts|prisma)$/,
+        /README\.md$/i,
+        /^src\/(App|main|index)\.(tsx?|jsx?)$/,
+        /^convex\/schema\.ts$/,
+        /\.config\.(ts|js|mjs)$/,
+        /^src\/pages\//,
+        /^src\/components\/.*index\.(tsx?|jsx?)$/,
+      ];
+      const keyFiles = codeFiles
+        .filter((f: any) =>
+          keyPatterns.some(p => p.test(f.path)),
+        )
+        .slice(0, 20);
+
+      // Also include any files whose path matches the user's prompt keywords
+      const promptWords = args.prompt
+        .toLowerCase()
+        .split(/\s+/)
+        .filter((w: string) => w.length > 3);
+      const relevantFiles = codeFiles
+        .filter(
+          (f: any) =>
+            !keyFiles.includes(f) &&
+            promptWords.some((w: string) => f.path.toLowerCase().includes(w)),
+        )
+        .slice(0, 10);
+
+      const contextFiles = [...keyFiles, ...relevantFiles];
+      const contextContent = contextFiles
+        .map(
+          (f: any) =>
+            `--- ${f.path} ---\n${(f.content ?? "").slice(0, 2000)}`,
+        )
+        .join("\n\n");
+
+      fileContext = `PROJECT FILE TREE (${codeFiles.length} files):\n${fileTree}\n\nKEY FILE CONTENTS:\n${contextContent}`;
+    } else {
+      fileContext = codeFiles
+        .map((f: any) => `--- ${f.path} ---\n${f.content}`)
+        .join("\n\n");
+    }
 
     try {
       // Step 1: Plan what to do
@@ -214,19 +266,19 @@ export const runBuildLoop = action({
         projectId: args.projectId,
         stepNumber: 1,
         action: "plan",
-        description: "Analyzing project and planning changes...",
+        description: `Analyzing project (${codeFiles.length} files) and planning changes...`,
         filesChanged: [],
         status: "running",
       });
 
-      const planPrompt = `You are CodeForge AI building a feature for a web project.
+      const planPrompt = `You are CodeForge AI building a feature for a web project with ${codeFiles.length} files.
 
 Current project files:
 ${fileContext}
 
 User request: ${args.prompt}
 
-Plan what files to create or modify. Return ONLY a JSON object (no markdown):
+Plan what files to create or modify. You can reference ANY file in the project tree. Return ONLY a JSON object (no markdown):
 {
   "steps": [
     { "action": "create_file" | "edit_file", "path": "filename.ext", "description": "what to do" }
@@ -257,31 +309,55 @@ Plan what files to create or modify. Return ONLY a JSON object (no markdown):
           status: "running",
         });
 
-        // Ask AI to generate the code
-        const existingFile = files.find((f: any) => f.path === step.path);
+        // Ask AI to generate the code — fetch fresh file content for large repos
+        let existingFile = files.find((f: any) => f.path === step.path);
+        if (isLargeProject && existingFile) {
+          // Re-fetch full content for the target file (tree overview truncated it)
+          const fresh = await ctx.runQuery(api.files.getByPath, {
+            projectId: args.projectId,
+            path: step.path,
+          });
+          if (fresh) existingFile = fresh;
+        }
+
+        // Build concise context from neighboring files (same directory)
+        const stepDir = step.path.includes("/")
+          ? step.path.split("/").slice(0, -1).join("/")
+          : "";
+        const neighborFiles = codeFiles
+          .filter(
+            (f: any) =>
+              f.path !== step.path &&
+              (stepDir
+                ? f.path.startsWith(stepDir + "/")
+                : !f.path.includes("/")),
+          )
+          .slice(0, 10);
+
+        const neighborContext = neighborFiles
+          .map(
+            (f: any) =>
+              `--- ${f.path} ---\n${(f.content ?? "").slice(0, 500)}`,
+          )
+          .join("\n");
+
         const codePrompt =
           step.action === "edit_file" && existingFile
             ? `Edit this file (${step.path}) to: ${step.description}
 
 Current content:
 \`\`\`
-${existingFile.content}
+${(existingFile as any).content}
 \`\`\`
 
-Other project files for context:
-${files
-  .filter((f: any) => f.path !== step.path && !f.isDirectory)
-  .map((f: any) => `--- ${f.path} ---\n${f.content.slice(0, 300)}`)
-  .join("\n")}
+Related project files for context:
+${neighborContext}
 
 Return ONLY the complete updated file content. No markdown fences, no explanation — just the raw code.`
             : `Create a new file at ${step.path}: ${step.description}
 
-Other project files for context:
-${files
-  .filter((f: any) => !f.isDirectory)
-  .map((f: any) => `--- ${f.path} ---\n${f.content.slice(0, 300)}`)
-  .join("\n")}
+Related project files for context:
+${neighborContext}
 
 Return ONLY the file content. No markdown fences, no explanation — just the raw code.`;
 
