@@ -552,3 +552,188 @@ export const createPullRequest = action({
     }
   },
 });
+
+// ─── Create Pull Request ─────────────────────────────────────────
+// Ported from autonomous-coder's delivery.ts — creates a branch,
+// commits files, and opens a PR on GitHub.
+export const createPullRequest = action({
+  args: {
+    repo: v.string(), // "owner/repo"
+    branchName: v.string(),
+    title: v.string(),
+    body: v.string(),
+    files: v.array(
+      v.object({
+        path: v.string(),
+        content: v.string(),
+      })
+    ),
+    baseBranch: v.optional(v.string()),
+  },
+  returns: v.object({
+    success: v.boolean(),
+    prUrl: v.optional(v.string()),
+    branchName: v.optional(v.string()),
+    error: v.optional(v.string()),
+  }),
+  handler: async (ctx, args) => {
+    const settings = await ctx.runQuery(api.github.getTokenInternal, {});
+    if (!settings?.token) {
+      return { success: false, error: "GitHub not connected" };
+    }
+
+    const { repo, branchName, title, body, files, baseBranch } = args;
+    const base = baseBranch || "main";
+    const [owner, repoName] = repo.split("/");
+
+    if (!owner || !repoName) {
+      return { success: false, error: "Invalid repo format. Use 'owner/repo'." };
+    }
+
+    try {
+      // 1. Get latest commit on base branch
+      const refRes = await githubFetch(
+        `/repos/${repo}/git/refs/heads/${base}`,
+        settings.token
+      );
+      if (!refRes.ok) {
+        const text = await refRes.text();
+        return { success: false, error: `Failed to get base ref: ${text}` };
+      }
+      const refData = (await refRes.json()) as { object: { sha: string } };
+      const latestSha = refData.object.sha;
+
+      // 2. Get the base tree
+      const commitRes = await githubFetch(
+        `/repos/${repo}/git/commits/${latestSha}`,
+        settings.token
+      );
+      const commitData = (await commitRes.json()) as { tree: { sha: string } };
+      const baseTreeSha = commitData.tree.sha;
+
+      // 3. Create new tree with file changes
+      const tree = files.map((f) => ({
+        path: f.path.replace(/^\//, ""),
+        mode: "100644" as const,
+        type: "blob" as const,
+        content: f.content,
+      }));
+
+      const treeRes = await githubFetch(
+        `/repos/${repo}/git/trees`,
+        settings.token,
+        {
+          method: "POST",
+          body: JSON.stringify({ base_tree: baseTreeSha, tree }),
+        }
+      );
+      const newTree = (await treeRes.json()) as { sha: string };
+
+      // 4. Create commit
+      const commitCreateRes = await githubFetch(
+        `/repos/${repo}/git/commits`,
+        settings.token,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            message: title,
+            tree: newTree.sha,
+            parents: [latestSha],
+          }),
+        }
+      );
+      const newCommit = (await commitCreateRes.json()) as { sha: string };
+
+      // 5. Create branch
+      await githubFetch(
+        `/repos/${repo}/git/refs`,
+        settings.token,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            ref: `refs/heads/${branchName}`,
+            sha: newCommit.sha,
+          }),
+        }
+      );
+
+      // 6. Create Pull Request
+      const prRes = await githubFetch(
+        `/repos/${repo}/pulls`,
+        settings.token,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            title,
+            body,
+            head: branchName,
+            base,
+          }),
+        }
+      );
+
+      if (!prRes.ok) {
+        const text = await prRes.text();
+        return {
+          success: false,
+          branchName,
+          error: `Branch created but PR failed: ${text}`,
+        };
+      }
+
+      const pr = (await prRes.json()) as { html_url: string };
+
+      return {
+        success: true,
+        prUrl: pr.html_url,
+        branchName,
+      };
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Unknown error",
+      };
+    }
+  },
+});
+
+// ─── Comment on issue ─────────────────────────────────────────────
+export const commentOnIssue = action({
+  args: {
+    repo: v.string(),
+    issueNumber: v.number(),
+    comment: v.string(),
+  },
+  returns: v.object({
+    success: v.boolean(),
+    error: v.optional(v.string()),
+  }),
+  handler: async (ctx, args) => {
+    const settings = await ctx.runQuery(api.github.getTokenInternal, {});
+    if (!settings?.token) {
+      return { success: false, error: "GitHub not connected" };
+    }
+
+    try {
+      const res = await githubFetch(
+        `/repos/${args.repo}/issues/${args.issueNumber}/comments`,
+        settings.token,
+        {
+          method: "POST",
+          body: JSON.stringify({ body: args.comment }),
+        }
+      );
+
+      if (!res.ok) {
+        return { success: false, error: `GitHub API error: ${res.status}` };
+      }
+
+      return { success: true };
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Unknown error",
+      };
+    }
+  },
+});

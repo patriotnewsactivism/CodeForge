@@ -426,6 +426,58 @@ const schema = defineSchema({
   })
     .index("by_project", ["projectId"])
     .index("by_project_time", ["projectId", "sentAt"]),
+  // ─── Debate Engine Records ──────────────────────────────────────
+  debates: defineTable({
+    sessionId: v.id("sessions"),
+    userId: v.id("users"),
+    proposal: v.string(),
+    verdict: v.string(),
+    proponentArgument: v.string(),
+    opponentArgument: v.string(),
+    moderatorReasoning: v.string(),
+    refinements: v.array(v.string()),
+    confidence: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_session", ["sessionId"])
+    .index("by_user", ["userId"]),
+
+  // ─── Forensic Agent Reports ─────────────────────────────────────
+  forensicReports: defineTable({
+    sessionId: v.id("sessions"),
+    userId: v.id("users"),
+    errorOutput: v.string(),
+    rootCause: v.string(),
+    confidence: v.number(),
+    category: v.string(),
+    severity: v.string(),
+    affectedFilesCount: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_session", ["sessionId"])
+    .index("by_user", ["userId"]),
+
+  // ─── Canary Deployments ─────────────────────────────────────────
+  canaryDeploys: defineTable({
+    projectId: v.id("projects"),
+    userId: v.id("users"),
+    targetUrl: v.string(),
+    healthCheckPath: v.string(),
+    stages: v.string(),
+    config: v.string(),
+    currentStage: v.number(),
+    status: v.string(),
+    errorRate: v.number(),
+    p95LatencyMs: v.number(),
+    lastStatusCode: v.number(),
+    lastMessage: v.optional(v.string()),
+    stageStartedAt: v.optional(v.number()),
+    lastCheckedAt: v.optional(v.number()),
+    startedAt: v.number(),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_user", ["userId"]),
 });
 
 export default schema;
