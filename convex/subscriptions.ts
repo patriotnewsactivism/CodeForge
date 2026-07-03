@@ -13,7 +13,8 @@
  * Rate limiting is enforced at the hourly AND daily level.
  */
 import { v } from "convex/values";
-import { mutation, query, internalMutation } from "./_generated/server";
+import { mutation, query, internalMutation, action } from "./_generated/server";
+import { api } from "./_generated/api";
 import { getAuthUserId } from "@convex-dev/auth/server";
 
 // ─── Plan Definitions ────────────────────────────────────────────
@@ -464,7 +465,7 @@ export const createCheckoutSession = action({
         metadata: JSON.stringify({ userId, plan }),
         allow_promotion_codes: "true",
         ...customerParam,
-      } as Record<string, string>),
+      } as unknown as Record<string, string>),
     });
 
     if (!response.ok) {

@@ -324,7 +324,7 @@ export function CodeCritic({ projectId, activeFile }: CodeCriticProps) {
         const summary = local.issues.length === 0
           ? "Code looks clean! No significant issues detected by static analysis."
           : local.issues.slice(0, 5).map(i =>
-              `[${i.severity.toUpperCase()}] Line ${i.line}: ${i.message}${i.suggestion ? " → " + i.suggestion : ""}`
+              `[${i.severity.toUpperCase()}] Line ${i.line}: ${i.description}${i.after ? " → " + i.after : ""}`
             ).join("\n");
         setAiReview(summary);
       }
@@ -332,7 +332,7 @@ export function CodeCritic({ projectId, activeFile }: CodeCriticProps) {
       const local = criticizeCode(activeFile.content, activeFile.path);
       setAiReview(local.issues.length === 0
         ? "Static analysis: Code looks clean."
-        : local.issues.map(i => `Line ${i.line}: ${i.message}`).join("\n"));
+        : local.issues.map(i => `Line ${i.line}: ${i.description}`).join("\n"));
     } finally {
       setAiLoading(false);
     }

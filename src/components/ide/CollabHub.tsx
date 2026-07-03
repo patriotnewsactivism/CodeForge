@@ -89,7 +89,7 @@ export function CollabHub({ projectId, sessionId }: CollabHubProps) {
         avatar: (s.displayName || s.name || "C").charAt(0).toUpperCase(),
         status: s.isActive ? "editing" as const : "viewing" as const,
         file: s.activeFilePath,
-        color: COLORS[i % COLORS.length],
+        color: AVATAR_COLORS[i % AVATAR_COLORS.length],
       }));
   }, [activeSessions, sessionId]);
 
@@ -119,11 +119,6 @@ export function CollabHub({ projectId, sessionId }: CollabHubProps) {
     } catch {
       // fallback — just clear input
     }
-    // legacy local fallback (no-op now that Convex handles it)
-    if (false) setLocalChatMessages((prev) => [
-      ...prev,
-      { user: "You", text: chatInput, time: "now" },
-    ]);
     setChatInput("");
   };
 

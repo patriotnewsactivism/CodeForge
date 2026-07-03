@@ -5,7 +5,7 @@
 import { v } from "convex/values";
 import { action, mutation, query, internalMutation } from "./_generated/server";
 import { internal } from "./_generated/api";
-import { Id } from "./_generated/dataModel";
+import type { Id } from "./_generated/dataModel";
 
 function generateToken(): string {
   const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
@@ -98,7 +98,7 @@ export const incrementViewCount = mutation({
       await ctx.db.patch(shareId, {
         viewCount: ((share as any).viewCount || 0) + 1,
         lastViewedAt: Date.now(),
-      });
+      } as any);
     }
   },
 });

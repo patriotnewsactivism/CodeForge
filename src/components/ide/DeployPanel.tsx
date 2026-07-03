@@ -176,6 +176,51 @@ export function DeployPanel({
     setDeployingTo(null);
   };
 
+  // Deploy to Vercel — export the project as a ZIP and hand off to Vercel's
+  // no-login drag-and-drop import flow (no API token wired up in this panel).
+  const handleVercelDeploy = async () => {
+    setDeployingTo("vercel");
+    try {
+      const { default: JSZip } = await import("jszip");
+      const { saveAs } = await import("file-saver");
+      const zip = new JSZip();
+      for (const file of allFiles || []) {
+        if (file.type === "file" && file.content) {
+          zip.file(file.path || file.name, file.content);
+        }
+      }
+      const blob = await zip.generateAsync({ type: "blob" });
+      saveAs(blob, `${projectName || "project"}.zip`);
+      toast.success("ZIP ready — drop it into Vercel's New Project import");
+      window.open("https://vercel.com/new", "_blank");
+    } catch {
+      toast.error("Failed to prepare Vercel deploy");
+    }
+    setDeployingTo(null);
+  };
+
+  // Deploy to Netlify — same ZIP export, handed off to Netlify Drop
+  const handleNetlifyDeploy = async () => {
+    setDeployingTo("netlify");
+    try {
+      const { default: JSZip } = await import("jszip");
+      const { saveAs } = await import("file-saver");
+      const zip = new JSZip();
+      for (const file of allFiles || []) {
+        if (file.type === "file" && file.content) {
+          zip.file(file.path || file.name, file.content);
+        }
+      }
+      const blob = await zip.generateAsync({ type: "blob" });
+      saveAs(blob, `${projectName || "project"}.zip`);
+      toast.success("ZIP ready — drop it into Netlify Drop to deploy instantly");
+      window.open("https://app.netlify.com/drop", "_blank");
+    } catch {
+      toast.error("Failed to prepare Netlify deploy");
+    }
+    setDeployingTo(null);
+  };
+
   // Export as ZIP (reuses ExportButton logic but in deploy context)
   const handleExportDeploy = async () => {
     setDeployingTo("zip");

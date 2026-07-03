@@ -32,7 +32,7 @@ import {
   ArrowLeft, Play, RotateCcw, Wand2
 } from "lucide-react";
 import { toast } from "sonner";
-import { motion, AnimatePresence, useSwipeable } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 
 type MobileTab = "build" | "preview" | "files";
 

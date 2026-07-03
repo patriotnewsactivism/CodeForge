@@ -6,7 +6,7 @@
  * Search across all files in a project. Regex support, replace all.
  */
 import type { Id } from "../../../convex/_generated/dataModel";
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { useState, useMemo, useCallback } from "react";
 import { cn } from "@/lib/utils";
@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
 
 interface SearchResult {
   fileId: string;
@@ -47,6 +48,9 @@ export function SearchPanel({ projectId, onFileSelect }: SearchPanelProps) {
   const [caseSensitive, setCaseSensitive] = useState(false);
   const [useRegex, setUseRegex] = useState(false);
   const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set());
+  const [replacing, setReplacing] = useState(false);
+
+  const updateContent = useMutation(api.files.updateContent);
 
   const files = useQuery(
     api.files.listWithContent,
@@ -103,6 +107,34 @@ export function SearchPanel({ projectId, onFileSelect }: SearchPanelProps) {
   }, [searchQuery, files, caseSensitive, useRegex]);
 
   const totalMatches = results.reduce((sum, r) => sum + r.matches.length, 0);
+
+  const handleReplaceAll = useCallback(async () => {
+    if (!searchQuery.trim() || !files || results.length === 0) return;
+    setReplacing(true);
+    try {
+      let regex: RegExp;
+      if (useRegex) {
+        regex = new RegExp(searchQuery, caseSensitive ? "g" : "gi");
+      } else {
+        const escaped = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        regex = new RegExp(escaped, caseSensitive ? "g" : "gi");
+      }
+
+      for (const result of results) {
+        const file = files.find((f) => (f._id as string) === result.fileId);
+        if (!file || !file.content) continue;
+        const newContent = file.content.replace(regex, replaceQuery);
+        if (newContent !== file.content) {
+          await updateContent({ fileId: file._id, content: newContent });
+        }
+      }
+      toast.success(`Replaced in ${results.length} file${results.length !== 1 ? "s" : ""}`);
+    } catch {
+      toast.error("Replace failed");
+    } finally {
+      setReplacing(false);
+    }
+  }, [searchQuery, replaceQuery, files, results, useRegex, caseSensitive, updateContent]);
 
   const toggleFile = useCallback((fileId: string) => {
     setExpandedFiles((prev) => {

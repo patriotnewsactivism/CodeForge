@@ -112,7 +112,7 @@ import {
 } from "lucide-react";
 
 // ─── Types ──────────────────────────────────────────────────────
-type MobileTab = "files" | "editor" | "preview" | "chat" | "agents" | "suggestions" | "git" | "search" | "costs" | "terminal" | "memory" | "timeline" | "context" | "activity" | "architect" | "tests" | "debate" | "deps" | "critic" | "prompts" | "trainer" | "deploy" | "profiler" | "collab" | "refactor" | "voiceapp" | "apitester" | "themes" | "branches";
+type MobileTab = "files" | "editor" | "preview" | "chat" | "agents" | "suggestions" | "git" | "search" | "costs" | "terminal" | "memory" | "timeline" | "context" | "activity" | "architect" | "tests" | "debate" | "deps" | "critic" | "prompts" | "trainer" | "deploy" | "profiler" | "collab" | "refactor" | "voiceapp" | "apitester" | "themes" | "branches" | "rollback" | "ecosystem" | "personality" | "adaptiveprompts";
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false);
@@ -188,6 +188,9 @@ export default function IDEPage() {
   const [showRollback, setShowRollback] = useState(false);
   // ── Upgrade #9 Adaptive Prompts ───────────────────────────────
   const [showAdaptivePrompts, setShowAdaptivePrompts] = useState(false);
+  // ── Deploy Panel + AI Prompt Library ──────────────────────────
+  const [showDeploy, setShowDeploy] = useState(false);
+  const [showPromptLib, setShowPromptLib] = useState(false);
   // ── Upgrade #10 Personality ──────────────────────────────────
   const [showPersonality, setShowPersonality] = useState(false);
   const [activePersonalityId, setActivePersonalityId] = useState("scrappy");
@@ -647,13 +650,13 @@ ${prompt}`
             <PerformanceProfiler projectId={activeProjectId} />
           )}
           {mobileTab === "collab" && (
-            <CollabHub projectId={activeProjectId} sessionId={sessionId} />
+            <CollabHub projectId={activeProjectId} sessionId={activeSession?._id} />
           )}
           {mobileTab === "refactor" && (
             <AIRefactor projectId={activeProjectId} activeFile={activeFileContent} />
           )}
           {mobileTab === "voiceapp" && (
-            <VoiceToApp projectId={activeProjectId} sessionId={sessionId} onSendMessage={handleSendPrompt} />
+            <VoiceToApp projectId={activeProjectId} sessionId={activeSession?._id} onSendMessage={handleSendPrompt} />
           )}
           {mobileTab === "apitester" && (
             <APITester />
@@ -1076,11 +1079,11 @@ ${prompt}`
                 ) : showProfiler ? (
                   <PerformanceProfiler projectId={activeProjectId} />
                 ) : showCollab ? (
-                  <CollabHub projectId={activeProjectId} sessionId={sessionId} />
+                  <CollabHub projectId={activeProjectId} sessionId={activeSession?._id} />
                 ) : showRefactor ? (
                   <AIRefactor projectId={activeProjectId} activeFile={activeFileContent} />
                 ) : showVoiceApp ? (
-                  <VoiceToApp projectId={activeProjectId} sessionId={sessionId} onSendMessage={handleSendPrompt} />
+                  <VoiceToApp projectId={activeProjectId} sessionId={activeSession?._id} onSendMessage={handleSendPrompt} />
                 ) : showApiTester ? (
                   <APITester />
                 ) : showThemes ? (

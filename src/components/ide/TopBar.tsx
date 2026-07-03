@@ -165,6 +165,20 @@ interface TopBarProps {
   onOpenCommandPalette?: () => void;
   onOpenSettings?: () => void;
   onSendPrompt?: (prompt: string) => void;
+  onOpenScreenshot?: () => void;
+  onOpenTemplates?: () => void;
+  onOpenShare?: () => void;
+  showScreenshot?: boolean;
+  showSharePreview?: boolean;
+  showRollback?: boolean;
+  onToggleRollback?: () => void;
+  showEcosystem?: boolean;
+  onToggleEcosystem?: () => void;
+  showPersonality?: boolean;
+  onTogglePersonality?: () => void;
+  showAdaptivePrompts?: boolean;
+  onToggleAdaptivePrompts?: () => void;
+  activePersonalityId?: string;
 }
 
 export function TopBar({

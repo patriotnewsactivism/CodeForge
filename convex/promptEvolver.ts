@@ -28,7 +28,7 @@ import {
   query,
 } from "./_generated/server";
 import { internal, api } from "./_generated/api";
-import { Id } from "./_generated/dataModel";
+import type { Id } from "./_generated/dataModel";
 
 declare const process: { env: Record<string, string | undefined> };
 

@@ -211,7 +211,7 @@ export function MissionReplay({ missionId, onClose }: MissionReplayProps) {
           const color = TOOL_COLORS[call.toolName] || "text-white/60";
           const isVisible = i <= currentIndex;
           const isCurrent = i === currentIndex;
-          const agent = agentMap.get(call.agentRunId);
+          const agent = agentMap.get(call.agentRunId) as any;
 
           let label = call.toolName.replace(/_/g, " ");
           if (call.filePath) label = call.filePath;

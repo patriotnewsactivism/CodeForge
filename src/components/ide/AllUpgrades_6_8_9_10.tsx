@@ -90,7 +90,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   GitBranch, Clock, RotateCcw, ChevronRight,
   FileCode, Plus, Minus, Edit3, Check, X, Loader2,
-  Eye, AlertTriangle, Sparkles
+  Eye, AlertTriangle, Sparkles, Globe
 } from "lucide-react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";

@@ -53,6 +53,15 @@ interface CommandPaletteProps {
   onOpenTemplates?: () => void;
   onExport?: () => void;
   onSendPrompt?: (prompt: string) => void;
+  onToggleRollback?: () => void;
+  onTogglePersonality?: () => void;
+  onToggleAdaptivePrompts?: () => void;
+  onToggleEcosystem?: () => void;
+  showRollback?: boolean;
+  showPersonality?: boolean;
+  showAdaptivePrompts?: boolean;
+  showEcosystem?: boolean;
+  activePersonalityId?: string;
 }
 
 export function CommandPalette({

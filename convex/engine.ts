@@ -13,7 +13,7 @@
 import { v } from "convex/values";
 import { action, internalAction, internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { api, internal } from "./_generated/api";
-import { Id } from "./_generated/dataModel";
+import type { Id } from "./_generated/dataModel";
 
 declare const process: { env: Record<string, string | undefined> };
 
@@ -578,7 +578,7 @@ export const runAgentLoop = internalAction({
     // ── Inject Personality / Style Preset (Upgrade #10) ──────────
     try {
       const personality = await ctx.runQuery(internal.engine.getUserPersonality, {
-        userId: agent.userId || "",
+        userId: (agent as any).userId || "",
       });
       if (personality?.systemPrompt) {
         conversationMessages[0].content += `\n\n## Coding Style Directive\n${personality.systemPrompt}`;

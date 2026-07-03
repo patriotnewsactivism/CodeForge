@@ -1,3 +1,4 @@
+import { getAuthUserId } from "@convex-dev/auth/server";
 /**
  * ═══════════════════════════════════════════════════════════════════
  * CODEFORGE — COLLAB MESSAGES
@@ -29,12 +30,9 @@ export const send = mutation({
     displayName: v.string(),
   },
   handler: async (ctx, { projectId, text, displayName }) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
-      .first();
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+    const user = await ctx.db.get(userId);
     if (!user) throw new Error("User not found");
 
     return await ctx.db.insert("collabMessages", {
